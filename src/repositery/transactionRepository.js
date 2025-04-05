@@ -10,7 +10,7 @@ class transactionRepositery {
   }
 
   async getTransactionByUserId(userId) {
-    return (await pool.query("SELECT * FROM transaction where userId = $1",[userId])).rows;
+    return (await pool.query("SELECT * FROM transaction where userid = $1",[userId])).rows;
   }
 
   async getTransactionByTransactionId(transactionId){

@@ -15,7 +15,7 @@ class transactionController {
 
     async getAllTransactionOfUser(req,res){
         try{
-            res.status(200).json(await getTransactionByUserId(req.body.userId));
+            res.status(200).json(await getTransactionByUserId(req.params.id));
         }catch(error){
             res.status(500).json({ error: error.message });
         }
