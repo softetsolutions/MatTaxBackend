@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 import APIrouter from "./routes/API-gatway.js";
 import entityManager from "./modal/entityManager.js";
 import { connectDB } from "./config/database.js";
-import google from './Auth/google-auth.js'
+import session from "express-session";
 dotenv.config();
 
 
@@ -12,10 +12,18 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || 'your_secret_key',
+    resave: false,
+    saveUninitialized: true,
+  })
+);
+
 // Routes
 app.use("/", APIrouter);
 
-const PORT =  5005;
+const PORT =  process.env.port;
 
 const startServer = async () => {
    await connectDB(); // Connect to database and show message

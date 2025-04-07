@@ -1,6 +1,5 @@
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
-import userRepositery from "../repositery/userRepositery.js";
 dotenv.config();
 
 const verifyToken = async (req, res, next) => {
@@ -18,8 +17,7 @@ const verifyToken = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_KEY);
     console.log("decode",decoded);
-    
-    const user = await userRepositery.getUserById(decoded.id);
+    const user = await pool.query("SELECT * FROM users WHERE id = $1", [decoded.id]);
     if (!user) {
       return res.status(404).json({ message: "User not found." });
     }
