@@ -61,6 +61,70 @@ class transactionController {
             res.status(500).json({ error: error.message });
         }
     }
+
+    async deleteTransaction(req, res) {
+        const { id } = req.params;
+        const query = `UPDATE transaction SET isdeleted = true WHERE id  = $1 RETURNING *`;
+        try{
+            const result = await pool.query(query, [id]);
+            if(result.rowCount > 0){
+                res.status(200).json({ message: "Transaction deleted successfully" });
+            }else{
+                res.status(404).json({ message: "Transaction not found" });
+            }
+        }catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    }
+
+    async getDeletedTransaction(req, res) {
+        const query = `SELECT * FROM transaction WHERE isdeleted = true`;
+        try{
+            const result = await pool.query(query);
+            if(result.rowCount > 0){
+                res.status(200).json(result.rows);
+            }else{
+                res.status(404).json({ message: "No deleted transactions found" });
+            }
+        }catch (error) {
+            return res.status(500).json({ error: error.message });
+        }
+    }
+
+    async getAllTransactions(req, res) {
+        try {
+            const { userId, accountantId } = req.query;
+            if (userId) {
+                const userResult = await pool.query(`SELECT * FROM users WHERE id = $1`, [userId]);
+                if (userResult.rows.length === 0) {
+                    return res.status(404).json({ error: 'User not found' });
+                }
+                if (accountantId) {
+                    const authorizationResult = await pool.query(`
+                        SELECT * FROM accountant_user_permissions 
+                        WHERE accountantId = $1 AND userId = $2
+                    `, [accountantId, userId]);
+    
+                    if (authorizationResult.rows.length === 0) {
+                        return res.status(403).json({ error: 'Accountant is not authorized for this user' });
+                    }
+                }
+                const query = `
+                    SELECT * FROM transaction
+                    WHERE isDeleted = false AND userId = $1
+                `;
+                const result = await pool.query(query, [userId]);
+                return res.status(200).json(result.rows);
+            } else {
+                const query = `SELECT * FROM transaction WHERE isDeleted = false`;
+                const result = await pool.query(query);
+                return res.status(200).json(result.rows);
+            }
+        } catch (error) {
+            console.error("Error fetching transactions:", error);
+            return res.status(500).json({ error: error.message });
+        }
+    }
 }
 
 export default new transactionController();
