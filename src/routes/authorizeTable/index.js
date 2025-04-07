@@ -1,6 +1,5 @@
 import express from "express";
-import authorizeTableController from "./controller/index.js";
-const { insertAuthorizeRecord} = authorizeTableController;
+import { insertAuthorizeRecord} from "./controller/index.js";
 const authorizeAccountRouter = express.Router();
 
 authorizeAccountRouter.post("/accountant", insertAuthorizeRecord);
