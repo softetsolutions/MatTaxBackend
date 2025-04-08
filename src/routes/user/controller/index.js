@@ -1,7 +1,4 @@
-import EctDct from '../../../config/managePassword.js';
 import { pool } from '../../../config/database.js';
-
-const { encrypt } = EctDct;
 
  export const getAllAccountant = async (req, res) => {
   console.log("Fetching all accountants...");
@@ -15,17 +12,6 @@ const { encrypt } = EctDct;
     res.status(500).json({ error: error.message });
   }
 }
-
-  export const createUser = async (req, res)=> {
-    try {
-      req.body.password = await encrypt(req.body.password, process.env.KEY);
-      const query = `INSERT INTO users (${Object.keys(req.body).join(', ')}) VALUES (${Object.keys(req.body).map((_, i) => `$${i + 1}`).join(', ')}) RETURNING *;`;
-      const result = await pool.query(query, Object.values(req.body));
-      res.status(201).json(result.rows[0]);
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  }
 
   export const getAllUser = async (req, res) => {
     try {
