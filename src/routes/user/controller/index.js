@@ -3,8 +3,20 @@ import { pool } from '../../../config/database.js';
 
 const { encrypt } = EctDct;
 
-class UserController {
-  async createUser(req, res) {
+ export const getAllAccountant = async (req, res) => {
+  console.log("Fetching all accountants...");
+  // console.log("Request body:", req.body);
+  try {
+    // const query = `SELECT * FROM users WHERE role = $1` [ 'accountant'];
+    const result = await pool.query(`SELECT * FROM users WHERE role = $1`, [ 'accountant']);
+    console.log(result.rows);
+    res.status(200).json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+}
+
+  export const createUser = async (req, res)=> {
     try {
       req.body.password = await encrypt(req.body.password, process.env.KEY);
       const query = `INSERT INTO users (${Object.keys(req.body).join(', ')}) VALUES (${Object.keys(req.body).map((_, i) => `$${i + 1}`).join(', ')}) RETURNING *;`;
@@ -15,7 +27,7 @@ class UserController {
     }
   }
 
-  async getAllUser(req, res) {
+  export const getAllUser = async (req, res) => {
     try {
       const query = `SELECT * FROM users`;
       const result = await pool.query(query);
@@ -26,7 +38,7 @@ class UserController {
     }
   }
 
-  async getByIdUser(req, res) {
+  export const getByIdUser = async (req, res) => {
     try {
       const id = req.params.id;
       const result = await pool.query("SELECT * FROM users WHERE id = $1", [id]);
@@ -37,7 +49,7 @@ class UserController {
     }
   }
 
-  async updateUser(req, res) {
+  export const updateUser = async (req, res) => {
     try {
       const id = req.params.id;
       const query = `UPDATE users SET ${Object.keys(req.body).map((key, i) => `${key} = $${i + 1}`).join(', ')} WHERE id = $${Object.keys(req.body).length + 1} RETURNING *`;
@@ -49,7 +61,7 @@ class UserController {
     }
   }
 
-  async deleteUser(req, res) {
+  export const deleteUser = async (req, res) => {
     try {
       const id = req.params.id;
       const query = `DELETE FROM users WHERE id = ${id} RETURNING *`;
@@ -60,20 +72,3 @@ class UserController {
       res.status(500).json({ error: error.message });
     }
   }
-
-  async getAllAccountant(req, res) {
-    console.log("Fetching all accountants...");
-    // console.log("Request body:", req.body);
-    try {
-      // const query = `SELECT * FROM users WHERE role = $1` [ 'accountant'];
-      const result = await pool.query(`SELECT * FROM users WHERE role = $1`, [ 'accountant']);
-      console.log(result.rows); 
-      res.status(200).json(result.rows);
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  }
-  
-}
-
-export default new UserController();

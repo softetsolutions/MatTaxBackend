@@ -9,7 +9,7 @@ const APIrouter = express.Router();
 APIrouter.use('/user', authRouter);
 APIrouter.use('/user/authorize', authorizeAccountRouter);
 APIrouter.use('/users', userRouter);
-APIrouter.use('/user/jwt', authRouter);
+APIrouter.use('/auth', authRouter);
 APIrouter.use('/transaction',transactionRouter);
 
 

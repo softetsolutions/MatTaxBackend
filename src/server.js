@@ -23,7 +23,7 @@ app.use(
 // Routes
 app.use("/", APIrouter);
 
-const PORT =  5005;
+const PORT =  process.env.port || 5005;
 
 const startServer = async () => {
    await connectDB(); // Connect to database and show message
