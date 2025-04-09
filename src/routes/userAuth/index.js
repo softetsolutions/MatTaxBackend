@@ -1,8 +1,9 @@
 import express from "express";
-import {login, logout, twitterAuth, twitterCallBackAuth} from "./controller/index.js";
+import {createUser, login, logout, twitterAuth, twitterCallBackAuth} from "./controller/index.js";
 import passport from "passport";
 const authRouter = express.Router();
 
+authRouter.post("/register", createUser);
 authRouter.post("/login", login);
 authRouter.post("/logout", logout);
 authRouter.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));

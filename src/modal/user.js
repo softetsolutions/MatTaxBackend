@@ -8,7 +8,7 @@ const userTable = async () => {
         lname VARCHAR(100) NOT NULL,
         email VARCHAR(100) UNIQUE NOT NULL,
         password VARCHAR(255) NOT NULL,
-        token VARCHAR(220),
+        token VARCHAR(500),
         phone VARCHAR(100),
         address VARCHAR(100),
         role VARCHAR(100) DEFAULT 'user',

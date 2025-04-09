@@ -2,12 +2,23 @@ import jsonwebtoken from "jsonwebtoken";
 import EctDct from '../../../config/managePassword.js';
 import { pool } from "../../../config/database.js";
 import { TwitterApi } from "twitter-api-v2";
-
+import { allowedRoutes } from "../../../config/constant.js";
 // User Login
 const twitterClient = new TwitterApi({
   clientId: process.env.TWITTER_CLIENT_ID,
   clientSecret: process.env.TWITTER_CLIENT_SECRET,
 });
+
+export const createUser = async (req, res)=> {
+  try {
+    req.body.password = EctDct.encrypt(req.body.password, process.env.KEY);
+    const query = `INSERT INTO users (${Object.keys(req.body).join(', ')}) VALUES (${Object.keys(req.body).map((_, i) => `$${i + 1}`).join(', ')}) RETURNING *;`;
+    const result = await pool.query(query, Object.values(req.body));
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+}
 
 export const twitterAuth = async (req, res) => {
   try {
@@ -68,10 +79,10 @@ export const login = async (req, res) => {
     if (!isPasswordValid) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
-
+    const tokenData = { id: user.id, role: user.role, allowedRoutes: allowedRoutes[user.role] };
     // Generate new token
     const authToken = jsonwebtoken.sign(
-      { id: user.id, role: user.userRole },
+      tokenData,
       process.env.JWT_KEY,
       {
         expiresIn: `1h`,
@@ -87,14 +98,13 @@ export const login = async (req, res) => {
     const updatedUser = await pool.query(updateUser, Object.values(body));
     req.user = updatedUser.rows[0];
     // Set token in cookies
-    // res.cookie("authToken", authToken, {
-    //   httpOnly: true,
-    //   secure: process.env.NODE_ENV === "production",
-    //   maxAge: 60 * 60 * 1000, // 1 hour
-    //   sameSite: "Strict",
-    // });
-
-    return res.status(200).json({ authToken });
+    res.cookie("authToken", authToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 60 * 60 * 1000, // 1 hour
+      sameSite: "Strict",
+    });
+    return res.status(200).json({ data: tokenData });
   }
   catch (error) {
     return res

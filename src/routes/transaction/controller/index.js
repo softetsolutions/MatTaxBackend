@@ -2,6 +2,26 @@ import { pool } from "../../../config/database.js";
 
 export const createTransaction = async (req, res) => {
     try {
+        const { userId, accountId } = req.query;
+
+        if (!userId) {
+            return res.status(400).json({ error: 'userId is required' });
+        }
+
+        const userResult = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        if (accountId) {
+            const authorizationResult = await pool.query('SELECT * FROM authorizetable WHERE userId = $1 AND accountId = $2', [userId, accountId]);
+            if (authorizationResult.rows.length === 0) {
+                return res.status(403).json({
+                    error: 'Accountant is not authorized to create this transaction for the user',
+                });
+            }
+        }
+
         const query = `INSERT INTO transaction (${Object.keys(req.body).join(', ')}) VALUES (${Object.keys(req.body).map((_, i) => `$${i + 1}`).join(', ')}) RETURNING *;`;
         const result = await pool.query(query, Object.values(req.body));
         res.status(201).json(result.rows[0]);
@@ -74,7 +94,7 @@ export const getDeletedTransaction = async (req, res) => {
     }
 }
 
-export const getAllTransactions = async (req, res) => {
+export const getAllTransactionOfUser = async (req, res) => {
     try {
         const { userId, accountId } = req.query;
         if (!userId && !accountId) {
@@ -82,14 +102,12 @@ export const getAllTransactions = async (req, res) => {
         }
         if (userId) {
             const userResult = await pool.query(`SELECT * FROM users WHERE id = $1`, [userId]);
-            // console.log(`User query result:`, userResult.rows);
             if (userResult.rows.length === 0) {
                 return res.status(404).json({ error: 'User not found' });
             }
             if (accountId) {
                 const authorizationResult = await pool.query(`SELECT * FROM authorizetable WHERE userId = $1 AND accountid = $2`, [userId, accountId]);
                 if (authorizationResult.rows.length === 0) {
-                    //console.log(`Accountant with accountId ${accountId} is not authorized for user ${userId}`);
                     return res.status(403).json({ error: `Accountant is not authorized to access this account` });
                 }
                 console.log(`Accountant with accountId ${accountId} is authorized for user ${userId}`);
@@ -97,23 +115,12 @@ export const getAllTransactions = async (req, res) => {
             const query = 'SELECT * FROM transaction WHERE isDeleted = false AND userId = $1';
             const result = await pool.query(query, [userId]);
             return res.status(200).json(result.rows);
-        }else {
+        } else {
             return res.status(400).json({ error: 'Either userId or accountId must be provided' });
         }
     } catch (error) {
         console.error("Error fetching transactions:", error);
         return res.status(500).json({ error: error.message });
-    }
-}
-
-
-export const getAllTransactionOfUser = async (req, res) => {
-    try {
-        const userId = req.params.id;
-        const result = await pool.query("SELECT * FROM transaction where userId = $1", [userId]);
-        res.status(200).json(result.rows);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
     }
 }
 
@@ -129,6 +136,36 @@ export const getTransactionByTransactionId = async (req, res) => {
 
 export const updateTransaction = async (req, res) => {
     try {
+        const { userId, accountId } = req.query;
+        const { transactionId } = req.body;
+
+        if (!userId) {
+            return res.status(400).json({ error: 'userId is required' });
+        }
+
+        const userResult = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const transactionResult = await pool.query('SELECT * FROM transaction WHERE id = $1', [transactionId]);
+        if (transactionResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Transaction not found' });
+        }
+
+        const transaction = transactionResult.rows[0];
+
+        if (transaction.userid !== parseInt(userId)) {
+            return res.status(403).json({ error: 'This transaction does not belong to the user' });
+        }
+
+        if (accountId) {
+            const authorizationResult = await pool.query('SELECT * FROM authorizeTable WHERE userId = $1 AND accountId = $2', [userId, accountId]);
+            if (authorizationResult.rows.length === 0) {
+                return res.status(403).json({ error: 'Accountant is not authorized to update this transaction' });
+            }
+        }
+
         const result = await pool.query("CALL update_transaction_with_log($1, $2, $3, $4, $5)", [
             req.body.transactionId,
             req.body.newAmount,
@@ -136,6 +173,11 @@ export const updateTransaction = async (req, res) => {
             req.body.newType,
             req.body.updatedByUserId
         ]);
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: 'Transaction not found or unable to update' });
+        }
+
         res.status(200).json({ message: "Transaction updated successfully" });
 
     } catch (error) {
