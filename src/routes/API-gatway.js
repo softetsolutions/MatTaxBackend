@@ -10,5 +10,6 @@ APIrouter.use('/accountant', verifyToken, authorizeAccountRouter);
 APIrouter.use('/user', verifyToken, userRouter);
 APIrouter.use('/auth', authRouter);
 APIrouter.use('/transaction',verifyToken, transactionRouter);
+// APIrouter.use('/transaction', transactionRouter);
 
 export default APIrouter;
