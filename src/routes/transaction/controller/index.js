@@ -32,7 +32,7 @@ export const createTransaction = async (req, res) => {
 
 export const deleteTransaction = async (req, res) => {
     try {
-        const { userId, accountId, transactionId } = req.query;
+        const { userId, accountId, transactionId } = req.query; //try in body
 
         if (!userId) {
             return res.status(400).json({ error: 'userId is required' });
@@ -67,7 +67,7 @@ export const deleteTransaction = async (req, res) => {
 
         const query = 'UPDATE transaction SET isDeleted = true WHERE id = $1 RETURNING *';
         const result = await pool.query(query, [transactionId]);
-
+        console.log(result);
         if (result.rowCount > 0) {
             return res.status(200).json({ message: 'Transaction deleted successfully' });
         } else {
@@ -79,11 +79,108 @@ export const deleteTransaction = async (req, res) => {
     }
 };
 
+export const restoreTransaction = async (req,res) => {
+    try{
+        const { userId, accountId } = req.query;
+        const { transactionId } = req.body;
+
+        if(!userId){
+            return res.status(400).json({ error: 'userId is required' });
+        }
+        const userResult = await pool.query(`SELECT * FROM users WHERE id = $1`, [userId]);
+        if(userResult.rows.length === 0){
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        if(!transactionId){
+            return res.status(400).json({ error: 'transactionId is required' });
+        }
+        const transactionResult = await pool.query(`SELECT * FROM transaction WHERE id = $1 AND userId = $2`, [transactionId, userId]);
+        if(transactionResult.rows.length === 0){
+            return res.status(404).json({ error: 'Transaction not found or does not belong to the user' });
+        }
+
+        if(accountId){
+            const authorizationResult = await pool.query(`SELECT * FROM authorizetable WHERE userId = $1 AND accountId = $2`, [userId, accountId]);
+            if(authorizationResult.rows.length === 0){
+                return res.status(403).json({ error: 'Accountant is not authorized to restore this transaction' });
+            }
+        }
+
+        const query = `UPDATE transaction SET isDeleted = false WHERE id = $1 RETURNING *`;
+        const result = await pool.query(query, [transactionId]);
+        if(result.rowCount > 0){
+            return res.status(200).json({ message: 'Transaction restored successfully' });
+        }else{
+            return res.status(404).json({ message: 'Transaction not found' });
+        }
+    }catch(error){
+        return res.status(500).json({ error: error.message });
+    }
+}
+
+export const deleteTransactionPermanently = async (req, res) => {
+    try{
+        const { userId, accountId } = req.query;
+        const { transactionId } = req.body;
+
+        if(!userId){
+            return res.status(400).json({ error: 'userId is required' });
+        }
+        const userResult = await pool.query(`SELECT * FROM users WHERE id = $1`, [userId]);
+        if(userResult.rows.length === 0){
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        if(accountId){
+            const authorizationResult = await pool.query(`SELECT * FROM authorizetable WHERE userId = $1 AND accountId = $2`, [userId, accountId]);
+            if(authorizationResult.rows.length === 0){
+                return res.status(403).json({ error: 'Accountant is not authorized to delete this transaction' });
+            }
+        }
+
+        if(!transactionId){
+            return res.status(400).json({ error: 'transactionId is required' });
+        }
+        const transactionResult = await pool.query(`SELECT * FROM transaction WHERE id = $1 AND userId = $2 AND isDeleted = true`, [transactionId, userId]);
+        if(transactionResult.rows.length === 0){
+            return res.status(404).json({ error: 'Transaction not found or does not belong to the user' });
+        }
+
+        const query = `DELETE FROM transaction WHERE id = $1`;
+        const result = await pool.query(query, [transactionId]);
+        if(result.rowCount > 0){
+            return res.status(200).json({ message: 'Transaction deleted permanently' });
+        }else{
+            return res.status(404).json({ message: 'Transaction not found' });
+        }
+
+    }catch(error){
+        return res.status(500).json({ error: error.message });
+    }
+}
 
 export const getDeletedTransaction = async (req, res) => {
-    const query = `SELECT * FROM transaction WHERE isdeleted = true`;
     try {
-        const result = await pool.query(query);
+        const { userId, accountId } = req.query;
+
+        if(!userId){
+            return res.status(400).json({ error: 'userId is required' });
+        }
+        const userResult = await pool.query(`SELECT * FROM users WHERE id = $1`, [userId]);
+        if(userResult.rows.length === 0){
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        if(accountId){
+            const authorizationResult = await pool.query(`SELECT * FROM authorizetable WHERE userId = $1 AND accountId = $2`, [userId, accountId]);
+            if(authorizationResult.rows.length === 0){
+                return res.status(403).json({ error: 'Accountant is not authorized to get deleted transactions' });
+            }
+        }
+
+        const query = `SELECT * FROM transaction WHERE isdeleted = true AND userId = $1`;
+        const result = await pool.query(query, [userId]);
         if (result.rowCount > 0) {
             res.status(200).json(result.rows);
         } else {
