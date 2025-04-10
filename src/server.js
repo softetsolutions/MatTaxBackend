@@ -5,13 +5,14 @@ import APIrouter from "./routes/API-gatway.js";
 import entityManager from "./modal/entityManager.js";
 import { connectDB } from "./config/database.js";
 import session from "express-session";
+import cookieParser from "cookie-parser";
 dotenv.config();
 
 
 const app = express();
 app.use(cors());
 app.use(express.json());
-
+app.use(cookieParser());
 app.use(
   session({
     secret: process.env.SESSION_SECRET || 'your_secret_key',
