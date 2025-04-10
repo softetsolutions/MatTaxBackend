@@ -1,12 +1,8 @@
 import { pool } from '../../../config/database.js';
 
  export const getAllAccountant = async (req, res) => {
-  console.log("Fetching all accountants...");
-  // console.log("Request body:", req.body);
   try {
-    // const query = `SELECT * FROM users WHERE role = $1` [ 'accountant'];
-    const result = await pool.query(`SELECT * FROM users WHERE role = $1`, [ 'accountant']);
-    console.log(result.rows);
+    const result = await pool.query(`SELECT id,fname,lname,created_at FROM users WHERE role = $1`, [ 'accountant']);
     res.status(200).json(result.rows);
   } catch (error) {
     res.status(500).json({ error: error.message });
