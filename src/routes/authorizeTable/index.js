@@ -1,7 +1,8 @@
 import express from "express";
-import { insertAuthorizeRecord} from "./controller/index.js";
+import { insertAuthorizeRecord, DeAuthorizeRecord} from "./controller/index.js";
 const authorizeAccountRouter = express.Router();
 
 authorizeAccountRouter.post("/auth", insertAuthorizeRecord);
+authorizeAccountRouter.delete("/remove-auth", DeAuthorizeRecord);
 
 export default authorizeAccountRouter;
