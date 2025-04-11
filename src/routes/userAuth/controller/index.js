@@ -104,7 +104,7 @@ export const login = async (req, res) => {
       maxAge: 60 * 60 * 1000, // 1 hour
       sameSite: "Strict",
     });
-    return res.status(200).json({ data: tokenData });
+    return res.status(200).json({ data: authToken });
   }
   catch (error) {
     return res
