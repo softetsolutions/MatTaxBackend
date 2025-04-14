@@ -14,7 +14,7 @@ export const createUser = async (req, res)=> {
     req.body.password = EctDct.encrypt(req.body.password, process.env.KEY);
     const query = `INSERT INTO users (${Object.keys(req.body).join(', ')}) VALUES (${Object.keys(req.body).map((_, i) => `$${i + 1}`).join(', ')}) RETURNING *;`;
     const result = await pool.query(query, Object.values(req.body));
-    res.status(201).json(result.rows[0]);
+    res.status(200).json(result.rows[0]);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -116,21 +116,21 @@ export const login = async (req, res) => {
 // User Logou
 export const logout = async (req, res) => {
   try {
-    const token =
-      req.header("Authorization") || req.headers.cookie?.replace("authToken=", "");
-    console.log("t", token);
-    const body = { token: null };
-    const fields = Object.keys(body);
-    const values = Object.values(body);
+    // const token =
+    //   req.header("Authorization") || req.headers.cookie?.replace("authToken=", "");
+    // console.log("t", token);
+    // const body = { token: null };
+    // const fields = Object.keys(body);
+    // const values = Object.values(body);
 
-    if (!fields.length) {
-      throw new Error("No fields to update");
-    }
+    // if (!fields.length) {
+    //   throw new Error("No fields to update");
+    // }
 
-    const set = fields.map((field, i) => `${field} = $${i + 1}`).join(", ");
-    const query = `UPDATE users SET ${set} WHERE token = $${fields.length + 1} RETURNING *`;
-    const result = await pool.query(query, [...values, token]);
-    user = result.rows[0];
+    // const set = fields.map((field, i) => `${field} = $${i + 1}`).join(", ");
+    // const query = `UPDATE users SET ${set} WHERE token = $${fields.length + 1} RETURNING *`;
+    // const result = await pool.query(query, [...values, token]);
+    // user = result.rows[0];
     res.clearCookie("authToken", {
       httpOnly: true,
       secure: true,
