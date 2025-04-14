@@ -1,8 +1,8 @@
 import express from "express";
-import authorizeTableController from "./controller/index.js";
-const { insertAuthorizeRecord} = authorizeTableController;
+import { insertAuthorizeRecord, DeAuthorizeRecord} from "./controller/index.js";
 const authorizeAccountRouter = express.Router();
 
-authorizeAccountRouter.post("/accountant", insertAuthorizeRecord);
+authorizeAccountRouter.post("/auth", insertAuthorizeRecord);
+authorizeAccountRouter.delete("/remove-auth", DeAuthorizeRecord);
 
 export default authorizeAccountRouter;

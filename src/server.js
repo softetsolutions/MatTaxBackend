@@ -5,13 +5,17 @@ import APIrouter from "./routes/API-gatway.js";
 import entityManager from "./modal/entityManager.js";
 import { connectDB } from "./config/database.js";
 import session from "express-session";
+import cookieParser from "cookie-parser";
 dotenv.config();
 
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:5173', 
+  credentials: true                
+}))
 app.use(express.json());
-
+app.use(cookieParser());
 app.use(
   session({
     secret: process.env.SESSION_SECRET || 'your_secret_key',
@@ -23,7 +27,7 @@ app.use(
 // Routes
 app.use("/", APIrouter);
 
-const PORT =  5005;
+const PORT =  process.env.port || 5005;
 
 const startServer = async () => {
    await connectDB(); // Connect to database and show message
