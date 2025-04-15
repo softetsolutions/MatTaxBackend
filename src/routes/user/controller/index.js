@@ -4,23 +4,26 @@ export const getAllAccountant = async (req, res) => {
   try {
     const userId = req.params.id;
     console.log(userId, "userId in getAllAccountant");
+
     const result = await pool.query(`
       SELECT
-      u.id,
-      u.fname,
-      u.lname,
-      u.email,
-      u.address,
-      (a.userid IS NOT NULL) AS is_authorized
+        u.id,
+        u.fname,
+        u.lname,
+        u.email,
+        u.address,
+        CASE 
+          WHEN a.userid IS NOT NULL THEN a.status
+          ELSE 'unauthorized'
+        END AS is_authorized
       FROM
-      users u
+        users u
       LEFT JOIN
-      authorizetable a
-      ON u.id = a.accountid
-      AND a.userid = $1
+        authorizetable a
+        ON u.id = a.accountid AND a.userid = $1
       WHERE
-      u.role = 'accountant'
-        `, [userId]);
+        u.role = 'accountant';
+    `, [userId]);
 
     res.status(200).json(result.rows);
   } catch (error) {
