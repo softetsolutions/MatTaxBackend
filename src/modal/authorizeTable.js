@@ -21,7 +21,8 @@ const authorizeTable = async () => {
     userId INT NOT NULL,
     accountId INT NOT NULL,
     FOREIGN KEY (accountId) REFERENCES users(id),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (userId, accountId) 
 );
   `;
 

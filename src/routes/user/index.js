@@ -9,6 +9,6 @@ userRouter.get("/accountants", getAllAccountant);
 userRouter.get("/:id", getByIdUser);
 userRouter.put("/:id", updateUser);
 userRouter.delete("/:id", deleteUser);
-userRouter.get("/accountants", getAllAccountant);
+userRouter.get("/accountants/:id", getAllAccountant);
 
 export default userRouter;
