@@ -63,11 +63,9 @@ export const deleteTransaction = async (req, res) => {
         [userId, accountId]
       );
       if (authorizationResult.rows.length === 0) {
-        return res
-          .status(403)
-          .json({
-            error: "Accountant is not authorized to delete this transaction",
-          });
+        return res.status(403).json({
+          error: "Accountant is not authorized to delete this transaction",
+        });
       }
     }
 
@@ -80,11 +78,9 @@ export const deleteTransaction = async (req, res) => {
       [transactionId, userId]
     );
     if (transactionResult.rows.length === 0) {
-      return res
-        .status(404)
-        .json({
-          error: "Transaction not found or does not belong to the user",
-        });
+      return res.status(404).json({
+        error: "Transaction not found or does not belong to the user",
+      });
     }
 
     const query =
@@ -127,11 +123,9 @@ export const restoreTransaction = async (req, res) => {
       [transactionId, userId]
     );
     if (transactionResult.rows.length === 0) {
-      return res
-        .status(404)
-        .json({
-          error: "Transaction not found or does not belong to the user",
-        });
+      return res.status(404).json({
+        error: "Transaction not found or does not belong to the user",
+      });
     }
 
     if (accountId) {
@@ -140,11 +134,9 @@ export const restoreTransaction = async (req, res) => {
         [userId, accountId]
       );
       if (authorizationResult.rows.length === 0) {
-        return res
-          .status(403)
-          .json({
-            error: "Accountant is not authorized to restore this transaction",
-          });
+        return res.status(403).json({
+          error: "Accountant is not authorized to restore this transaction",
+        });
       }
     }
 
@@ -183,11 +175,9 @@ export const deleteTransactionPermanently = async (req, res) => {
         [userId, accountId]
       );
       if (authorizationResult.rows.length === 0) {
-        return res
-          .status(403)
-          .json({
-            error: "Accountant is not authorized to delete this transaction",
-          });
+        return res.status(403).json({
+          error: "Accountant is not authorized to delete this transaction",
+        });
       }
     }
 
@@ -199,11 +189,9 @@ export const deleteTransactionPermanently = async (req, res) => {
       [transactionId, userId]
     );
     if (transactionResult.rows.length === 0) {
-      return res
-        .status(404)
-        .json({
-          error: "Transaction not found or does not belong to the user",
-        });
+      return res.status(404).json({
+        error: "Transaction not found or does not belong to the user",
+      });
     }
 
     const query = `DELETE FROM transaction WHERE id = $1`;
@@ -240,11 +228,9 @@ export const getDeletedTransaction = async (req, res) => {
         [userId, accountId]
       );
       if (authorizationResult.rows.length === 0) {
-        return res
-          .status(403)
-          .json({
-            error: "Accountant is not authorized to get deleted transactions",
-          });
+        return res.status(403).json({
+          error: "Accountant is not authorized to get deleted transactions",
+        });
       }
     }
 
@@ -281,11 +267,9 @@ export const getAllTransactionOfUser = async (req, res) => {
           [userId, accountId]
         );
         if (authorizationResult.rows.length === 0) {
-          return res
-            .status(403)
-            .json({
-              error: `Accountant is not authorized to access this account`,
-            });
+          return res.status(403).json({
+            error: `Accountant is not authorized to access this account`,
+          });
         }
         console.log(
           `Accountant with accountId ${accountId} is authorized for user ${userId}`
@@ -356,11 +340,9 @@ export const updateTransaction = async (req, res) => {
         [userId, accountId]
       );
       if (authorizationResult.rows.length === 0) {
-        return res
-          .status(403)
-          .json({
-            error: "Accountant is not authorized to update this transaction",
-          });
+        return res.status(403).json({
+          error: "Accountant is not authorized to update this transaction",
+        });
       }
     }
 
@@ -423,17 +405,13 @@ export const getTransactionLogByTransactionId = async (req, res) => {
           [userId, accountId]
         );
         if (authorizationResult.rows.length === 0) {
-          return res
-            .status(403)
-            .json({
-              error: `Accountant is not authorized to access this account`,
-            });
+          return res.status(403).json({
+            error: `Accountant is not authorized to access this account`,
+          });
         }
-        console.log(
-          `Accountant with accountId ${accountId} is authorized for user ${userId}`
-        );
       }
-      const query = "SELECT * FROM transactionLog WHERE transactionid = $1";
+      const query =
+        "SELECT t.*,u.fname, u.lname FROM transactionlog as t LEFT JOIN users as u on t.updatedbyuserid = u.id  where t.transactionid = $1";
       const result = await pool.query(query, [transactionId]);
       const newResult = result.rows.map((log) => {
         return {
@@ -446,12 +424,11 @@ export const getTransactionLogByTransactionId = async (req, res) => {
             }
             return acc;
           }, []),
-          edited_by: log.updatedbyuserid,
+          edited_by: `${log.fname} ${log.lname}`,
           timestamp: log.created_at,
         };
       });
-      console.log("newResult", JSON.stringify(newResult));
-      return res.status(200).json(result.rows);
+      return res.status(200).json(newResult);
     } else {
       return res
         .status(400)
