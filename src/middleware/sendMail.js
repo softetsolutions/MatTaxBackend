@@ -2,6 +2,7 @@ import nodemailer from "nodemailer";
 import dotenv from "dotenv";
 dotenv.config();
 
+export const sendMail = async (email) => {
 const mailData = {
     from: process.env.MAIL_EMAIL,
     to: email,
@@ -51,7 +52,7 @@ const mailData = {
   const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
-      user: process.env.MAIL_EMAIL,
+      user: process.env.MAIL_EMAIL ,
       pass: process.env.MAIL_PASS
     },
   });
@@ -60,3 +61,4 @@ const mailData = {
     if (error) return console.error(error);
     return console.log(result);
   });
+}
