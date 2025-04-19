@@ -8,51 +8,71 @@ export const insertAuthorizeRecord = async (req, res) => {
         const values = Object.values(restBody);
 
         if (status && ['approved', 'rejected'].includes(status.toLowerCase())) {
-            return res.status(400).json({ message: 'Status cannot be approved or rejected.' });
+            return res.status(400).json({ message: 'Status cannot be approved or rejected at creation.' });
         }
 
         let userStatus;
 
-        const checkUser = 'SELECT status FROM users WHERE id = $1';
-        let userResult = await pool.query(checkUser, [restBody.userId]);
+        // Check if authorization record exists for user
+        const checkUserQuery = 'SELECT status FROM authorizeTable WHERE userId = $1 AND accountId = $2';
+        const userResult = await pool.query(checkUserQuery, [restBody.userId, restBody.accountId]);
 
+        // Insert new record if not found
         if (userResult.rowCount === 0) {
-            const createUserQuery = 'INSERT INTO users (id, status) VALUES ($1, $2) RETURNING status';
-            const newUser = await pool.query(createUserQuery, [restBody.userId, 'pending']);
-            userStatus = newUser.rows[0].status;
-        } else {
-            userStatus = userResult.rows[0].status;
+            userStatus = 'pending';
+            const insertInitialQuery = `
+                INSERT INTO authorizeTable (userId, accountId, status)
+                VALUES ($1, $2, $3)
+                RETURNING *;
+            `;
+            const newUser = await pool.query(insertInitialQuery, [restBody.userId, restBody.accountId, userStatus]);
+
+            const accountantResult = await pool.query("SELECT email FROM users WHERE id = $1", [restBody.accountId]);
+            const accountantEmail = accountantResult.rows[0]?.email;
+
+            if (accountantEmail) {
+                const mailStatus = sendMail(accountantEmail);
+                console.log("Mail Status:", mailStatus);
+            }
+
+            return res.status(200).json({
+                message: 'New record inserted successfully.',
+                data: newUser.rows[0],
+            });
         }
+
+        // Existing record found
+        userStatus = userResult.rows[0].status;
 
         if (userStatus?.toLowerCase() === 'approved') {
             return res.status(200).json({ message: 'User already approved' });
         }
 
+        // Set default status
         if (!status || userStatus?.toLowerCase() === 'rejected') {
             status = 'pending';
         }
 
+        // Prepare values and placeholders for UPSERT
         keys.push('status');
         values.push(status);
 
-        const placeholders = keys.map((_, i) => `$${i + 1}`).join(', ');
-        const updates = keys.map(key => `${key} = EXCLUDED.${key}`).join(', ');
-
-        const query = `
-            INSERT INTO authorizeTable (${keys.join(', ')})
-            VALUES (${placeholders})
-            ON CONFLICT (userId, accountId) DO UPDATE SET ${updates}
-            RETURNING *;
+        const upsertQuery = `
+            update authorizetable SET status = $1 WHERE userid = $2 AND accountid = $3
         `;
+        const result = await pool.query(upsertQuery, [status, restBody.userId, restBody.accountId ]);
+        console.log("Result:", result);
+        const accountantResult = await pool.query("SELECT email FROM users WHERE id = $1", [restBody.accountId]);
+        const accountantEmail = accountantResult.rows[0]?.email;
 
-        const result = await pool.query(query, values);
-        const accountantResult = await pool.query("SELECT email FROM user WHERE userid = $1", [restBody.accountId]);
-        const accountantEmail = accountantResult.rows[0]?.email || null;
-        const mailStatus = sendMail(accountantEmail);
-        console.log("Mail Status:", mailStatus);
+        if (accountantEmail) {
+            const mailStatus = sendMail(accountantEmail);
+            console.log("Mail Status:", mailStatus);
+        }
+
         res.status(200).json({
-            message: result.rows.length
-                ? 'Record inserted or updated successfully.'
+            message: result.rowCount > 0
+                ? 'Record udpated .'
                 : 'No changes made.',
             data: result.rows[0] || null
         });
