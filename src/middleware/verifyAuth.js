@@ -17,11 +17,14 @@ const verifyToken = async (req, res, next) => {
     if (!user) {
       return res.status(404).json({ message: "User not found." });
     }
+    // else if (!user.token) {
+    //   return res.status(400).json({ message: "Creat New Session" });
+    // }
     next();
   }
   catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Internal server Error" });
+    res.status(400).json({ message: "Invalid token" });
   }
 };
 

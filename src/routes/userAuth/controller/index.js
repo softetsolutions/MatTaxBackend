@@ -85,23 +85,23 @@ export const login = async (req, res) => {
       tokenData,
       process.env.JWT_KEY,
       {
-        expiresIn: `6h`,
+        expiresIn: `1h`,
       }
     );
-    // const id = user.id;
-    // const body = { token: authToken };
+    const id = user.id;
+    const body = { token: authToken };
 
-    // const fields = Object.keys(body);
-    // const set = fields.map((field, i) => `${field} = $${i + 1}`).join(', ');
-    // const updateUser = `UPDATE users SET ${set} WHERE id = ${id} RETURNING *`;
+    const fields = Object.keys(body);
+    const set = fields.map((field, i) => `${field} = $${i + 1}`).join(', ');
+    const updateUser = `UPDATE users SET ${set} WHERE id = ${id} RETURNING *`;
 
-    // const updatedUser = await pool.query(updateUser, Object.values(body));
-    // req.user = updatedUser.rows[0];
+    const updatedUser = await pool.query(updateUser, Object.values(body));
+    req.user = updatedUser.rows[0];
     // Set token in cookies
     res.cookie("authToken", authToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      maxAge: 60 * 60 * 6000, // 1 hour
+      maxAge: 60 * 60 * 1000, // 1 hour
       sameSite: "Strict",
     });
     return res.status(200).json({ data: authToken });
