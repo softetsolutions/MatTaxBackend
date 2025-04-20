@@ -276,7 +276,7 @@ export const getAllTransactionOfUser = async (req, res) => {
         );
       }
       const query =
-        "SELECT * FROM transaction WHERE isDeleted = false AND userId = $1";
+        "SELECT t.*, v.name as vendorName FROM transaction as t LEFT JOIN vendors as v ON t.vendorid = v.id WHERE t.isDeleted = false AND t.userid = $1";
       const result = await pool.query(query, [userId]);
       return res.status(200).json(result.rows);
     } else {

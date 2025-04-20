@@ -3,7 +3,7 @@ import { pool } from "../config/database.js";
 const vendorTable = async () => {
   const query = `
     CREATE TABLE IF NOT EXISTS vendors (
-      vendorid SERIAL PRIMARY KEY,
+      id SERIAL PRIMARY KEY,
       name VARCHAR(100) NOT NULL,
       address VARCHAR(255),
       email1 VARCHAR(100) UNIQUE NOT NULL,
