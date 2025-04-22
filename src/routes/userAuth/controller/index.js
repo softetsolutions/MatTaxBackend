@@ -3,6 +3,9 @@ import EctDct from '../../../config/managePassword.js';
 import { pool } from "../../../config/database.js";
 import { TwitterApi } from "twitter-api-v2";
 import { allowedRoutes } from "../../../config/constant.js";
+import {  verifyMail } from "../../../middleware/sendMail.js";
+import atob from "atob";
+import btoa from "btoa";
 // User Login
 const twitterClient = new TwitterApi({
   clientId: process.env.TWITTER_CLIENT_ID,
@@ -14,7 +17,25 @@ export const createUser = async (req, res)=> {
     req.body.password = EctDct.encrypt(req.body.password, process.env.KEY);
     const query = `INSERT INTO users (${Object.keys(req.body).join(', ')}) VALUES (${Object.keys(req.body).map((_, i) => `$${i + 1}`).join(', ')}) RETURNING *;`;
     const result = await pool.query(query, Object.values(req.body));
+    const token = btoa(`${result.rows[0].id}`);
+    console.log("token", token);
+    const verifyLink = `${'http://localhost:5173'}/verifyEmail/${token}`;
+    verifyMail(req.body.email, verifyLink);
     res.status(200).json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+}
+export const verifyUser = async (req, res)=> {
+  try {
+    const { token } = req.params;
+    const id = atob(token);
+    const query = `UPDATE users SET verified = true WHERE id = $1 RETURNING *;`;
+    const result = await pool.query(query, [id]);
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.status(200).json({ message: "User verified successfully", user: result.rows[0].email });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -67,7 +88,7 @@ export const twitterCallBackAuth = async (req, res) => {
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    const query = `SELECT * FROM users WHERE email = $1`;
+    const query = `SELECT * FROM users WHERE email = $1 AND verified = true`;
     const result = await pool.query(query, [email]);
     const user = result.rows[0]; // Get the first user object from the result
 

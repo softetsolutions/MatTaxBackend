@@ -1,5 +1,5 @@
 import { pool } from "../../../config/database.js";
-import { sendMail } from "../../../middleware/sendMail.js";
+import { approveMail } from "../../../middleware/sendMail.js";
 
 export const insertAuthorizeRecord = async (req, res) => {
     try {
@@ -31,7 +31,7 @@ export const insertAuthorizeRecord = async (req, res) => {
             const accountantEmail = accountantResult.rows[0]?.email;
 
             if (accountantEmail) {
-                const mailStatus = sendMail(accountantEmail);
+                const mailStatus = approveMail(accountantEmail);
                 console.log("Mail Status:", mailStatus);
             }
 
