@@ -1,4 +1,6 @@
 import { pool } from "../../../config/database.js";
+import csv from "csv-parser";
+import { Readable } from "stream";
 
 const changesMap = ["amount", "category", "isdeleted", "type"];
 
@@ -438,4 +440,61 @@ export const getTransactionLogByTransactionId = async (req, res) => {
     console.error("Error fetching transactions:", error);
     return res.status(500).json({ error: error.message });
   }
+};
+
+export const importTransactionCSV = async (req, res, next) => {
+  if (!req.file) {
+    return res.status(400).json({
+      error: `CSV file is required`,
+    });
+  }
+
+  const results = [];
+
+  try {
+    const readableStream = Readable.from(req.file.buffer.toString());
+
+    readableStream
+      .pipe(csv())
+      .on("data", (data) => {
+        results.push(data);
+      })
+      .on("end", async () => {
+        const client = await pool.connect();
+
+        try {
+          await client.query("BEGIN");
+
+          for (const row of results) {
+            const {
+              isDeleted,
+              amount,
+              category,
+              type,
+              userId,
+              vendorId
+            } = row;
+
+            await client.query(
+              `INSERT INTO transaction (isDeleted, amount, category, type, userId, vendorId)
+               VALUES ($1, $2, $3, $4, $5, $6)`,
+              [isDeleted === "true", amount, category, type, parseInt(userId), parseInt(vendorId)]
+            );
+          }
+
+          await client.query("COMMIT");
+          res.status(201).json({ message: "CSV imported successfully" });
+        } catch (err) {
+          await client.query("ROLLBACK");
+          res.status(500).json({
+            error: `Error importing CSV: ${err.message}`,
+          });
+        } finally {
+          client.release();
+        }
+      });
+    } catch (error) {
+      console.error("Error fetching transactions:", error);
+      return res.status(500).json({ error: error.message });
+    }
 };

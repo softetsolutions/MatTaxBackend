@@ -42,6 +42,26 @@ export const getAllUser = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 }
+export const usersAuthAccountants = async (req, res) => {
+  try {
+    const query = `SELECT * FROM users as u LEFT JOIN authorizetable as a ON u.id = a.userid WHERE u.role = 'user'`;
+    const result = await pool.query(query);
+    res.status(200).json(result.rows);
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+}
+export const AccountantsAuthUsers = async (req, res) => {
+  try {
+    const query = `SELECT * FROM users as u LEFT JOIN authorizetable as a ON u.id = a.userid WHERE u.role = 'accountant'`;
+    const result = await pool.query(query);
+    res.status(200).json(result.rows);
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+}
 
 export const getByIdUser = async (req, res) => {
   try {
