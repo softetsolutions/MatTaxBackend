@@ -44,9 +44,59 @@ export const getAllUser = async (req, res) => {
 }
 export const usersAuthAccountants = async (req, res) => {
   try {
-    const query = `SELECT * FROM users as u LEFT JOIN authorizetable as a ON u.id = a.userid WHERE u.role = 'user'`;
+    const query = `
+      SELECT 
+        u.id AS user_id,
+        u.fname AS user_fname,
+        u.lname AS user_lname,
+        u.email AS user_email,
+        u.address AS user_address,
+        u.phone AS user_phone,
+        u.role AS user_role,
+        a.status AS authorize_status,
+        acc.id AS accountant_id,
+        acc.fname AS accountant_fname,
+        acc.lname AS accountant_lname,
+        acc.email AS accountant_email,
+        acc.phone AS accountant_phone
+      FROM 
+        authorizetable AS a
+      LEFT JOIN users AS u ON u.id = a.userid AND u.role = 'user'
+      LEFT JOIN users AS acc ON acc.id = a.accountid AND acc.role = 'accountant'
+      WHERE a.status = 'approved'
+
+    `;
     const result = await pool.query(query);
-    res.status(200).json(result.rows);
+
+    // Grouping data
+    const usersMap = new Map();
+
+    result.rows.forEach(row => {
+      if (!usersMap.has(row.user_id)) {
+        usersMap.set(row.user_id, {
+          user_id: row.user_id,
+          user_fname: row.user_fname,
+          user_lname: row.user_lname,
+          user_email: row.user_email,
+          user_address: row.user_address,
+          user_phone: row.user_phone,
+          authorize_status: row.authorize_status,
+          accountants: []
+        });
+      }
+
+      if (row.accountant_id) { // Only if accountant exists
+        usersMap.get(row.user_id).accountants.push({
+          accountant_id: row.accountant_id,
+          accountant_fname: row.accountant_fname,
+          accountant_lname: row.accountant_lname,
+          accountant_email: row.accountant_email,
+          accountant_phone: row.accountant_phone
+        });
+      }
+    });
+
+    res.status(200).json([...usersMap.values()]); // Convert map to array
 
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -54,9 +104,59 @@ export const usersAuthAccountants = async (req, res) => {
 }
 export const AccountantsAuthUsers = async (req, res) => {
   try {
-    const query = `SELECT * FROM users as u LEFT JOIN authorizetable as a ON u.id = a.userid WHERE u.role = 'accountant'`;
+    const query = `
+      SELECT 
+        acc.id AS accountant_id,
+        acc.fname AS accountant_fname,
+        acc.lname AS accountant_lname,
+        acc.email AS accountant_email,
+        acc.address AS accountant_address,
+        acc.phone AS accountant_phone,
+        acc.role AS accountant_role,
+        a.status AS authorize_status,
+        u.id AS user_id,
+        u.fname AS user_fname,
+        u.lname AS user_lname,
+        u.email AS user_email,
+        u.phone AS user_phone
+      FROM 
+        users AS acc
+      LEFT JOIN authorizetable AS a ON acc.id = a.accountid
+      LEFT JOIN users AS u ON u.id = a.userid AND u.role = 'user'
+      WHERE acc.role = 'accountant' AND a.status = 'approved'
+    `;
+
     const result = await pool.query(query);
-    res.status(200).json(result.rows);
+
+    // Group by accountant
+    const accountantsMap = new Map();
+
+    result.rows.forEach(row => {
+      if (!accountantsMap.has(row.accountant_id)) {
+        accountantsMap.set(row.accountant_id, {
+          accountant_id: row.accountant_id,
+          accountant_fname: row.accountant_fname,
+          accountant_lname: row.accountant_lname,
+          accountant_email: row.accountant_email,
+          accountant_address: row.accountant_address,
+          accountant_phone: row.accountant_phone,
+          authorize_status: row.authorize_status,
+          users: []
+        });
+      }
+
+      if (row.user_id) { // Only if user exists
+        accountantsMap.get(row.accountant_id).users.push({
+          user_id: row.user_id,
+          user_fname: row.user_fname,
+          user_lname: row.user_lname,
+          user_email: row.user_email,
+          user_phone: row.user_phone
+        });
+      }
+    });
+
+    res.status(200).json([...accountantsMap.values()]);
 
   } catch (error) {
     res.status(500).json({ error: error.message });
