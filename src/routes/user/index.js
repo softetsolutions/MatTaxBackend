@@ -1,10 +1,12 @@
 import express from "express";
-import {deleteUser,getAllUser,getByIdUser,updateUser, getAllAccountant} from "./controller/index.js";
+import {deleteUser,getAllUser,getByIdUser,updateUser, getAllAccountant, usersAuthAccountants, AccountantsAuthUsers} from "./controller/index.js";
 import verifyToken from "../../middleware/verifyAuth.js";
 
 const userRouter = express.Router();
 
 userRouter.get("/", getAllUser);
+userRouter.get("/user-details", usersAuthAccountants);
+userRouter.get("/accountant-details", AccountantsAuthUsers);
 userRouter.get("/accountants", getAllAccountant);
 userRouter.get("/:id", getByIdUser);
 userRouter.put("/:id", updateUser);

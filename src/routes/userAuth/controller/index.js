@@ -15,6 +15,7 @@ const twitterClient = new TwitterApi({
 export const createUser = async (req, res)=> {
   try {
     req.body.password = EctDct.encrypt(req.body.password, process.env.KEY);
+    req.body.verified = false;
     const query = `INSERT INTO users (${Object.keys(req.body).join(', ')}) VALUES (${Object.keys(req.body).map((_, i) => `$${i + 1}`).join(', ')}) RETURNING *;`;
     const result = await pool.query(query, Object.values(req.body));
     const token = btoa(`${result.rows[0].id}`);
@@ -88,14 +89,19 @@ export const twitterCallBackAuth = async (req, res) => {
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    const query = `SELECT * FROM users WHERE email = $1 AND verified = true`;
+    const query = `SELECT * FROM users WHERE email = $1`;
+    // const query = `SELECT * FROM users WHERE email = $1 AND verified IS true AND islocked = 'unlocked'`;
     const result = await pool.query(query, [email]);
-    const user = result.rows[0]; // Get the first user object from the result
-
+    const user = result.rows[0]; 
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ message: "User does not exists please signup" });
     }
-
+    if (!user.verified) {
+      return res.status(403).json({ message: "User account is not verified" });
+    }
+    if(user.islocked === 'locked') {
+      return res.status(403).json({ message: "User account is locked" });
+    }
     const isPasswordValid = await EctDct.decrypt(password, user.password);
     if (!isPasswordValid) {
       return res.status(401).json({ message: "Invalid credentials" });

@@ -5,12 +5,13 @@ const userTable = async () => {
     CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         fname VARCHAR(100) NOT NULL,
-        lname VARCHAR(100) NOT NULL,
+        lname VARCHAR(100),
         email VARCHAR(100) UNIQUE NOT NULL,
         password VARCHAR(255) NOT NULL,
         phone VARCHAR(100),
         address VARCHAR(100),
-        verified BOOLEAN DEFAULT FALSE,
+        verified BOOLEAN DEFAULT false,
+        isLocked VARCHAR(10) DEFAULT unlocked,
         role VARCHAR(100) DEFAULT 'user',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
