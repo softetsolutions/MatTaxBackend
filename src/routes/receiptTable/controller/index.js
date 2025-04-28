@@ -10,9 +10,7 @@ export const deleteReceipt = async (req, res) => {
         }
 
         const { filepath } = result.rows[0];
-        await fs.unlink(filepath).catch(() => {
-            console.warn("File already deleted or not found:", filepath);
-        });
+        await fs.unlink(filepath);
 
         await pool.query("DELETE FROM receipt WHERE id = $1", [id]);
 
@@ -43,9 +41,7 @@ export const updateReceipt = async (req, res) => {
             [filepath, filename, id]
         );
 
-        await fs.unlink(oldFilepath).catch(() => {
-            console.warn("Old file not found or already deleted:", oldFilepath);
-        });
+        await fs.unlink(oldFilepath);
 
         res.status(200).json({ message: "Receipt updated successfully" });
     } catch (error) {

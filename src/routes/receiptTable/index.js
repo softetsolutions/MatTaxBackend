@@ -4,7 +4,7 @@ import { deleteReceipt, updateReceipt } from "./controller/index.js";
 
 const receiptRouter = express.Router();
 
-receiptRouter.delete("/id", deleteReceipt);
-receiptRouter.put("/id", upload.single("file"), updateReceipt); 
+receiptRouter.delete("/:id", deleteReceipt);
+receiptRouter.put("/:id", upload.single("file"), updateReceipt); 
 
 export default receiptRouter;

@@ -6,6 +6,7 @@ import authorizeAccountRouter from './authorizeTable/index.js';
 import verifyToken from '../middleware/verifyAuth.js';
 import vendorRouter from './vendor/index.js';
 import receiptRouter from './receiptTable/index.js';
+import adminRouter from './admin/index.js';
 
 const APIrouter = express.Router();
 APIrouter.use('/accountant', verifyToken, authorizeAccountRouter);
