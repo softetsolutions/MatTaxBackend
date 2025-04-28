@@ -5,6 +5,7 @@ import transactionRouter from './transaction/index.js';
 import authorizeAccountRouter from './authorizeTable/index.js';
 import verifyToken from '../middleware/verifyAuth.js';
 import vendorRouter from './vendor/index.js';
+import receiptRouter from './receiptTable/index.js';
 import adminRouter from './admin/index.js';
 
 const APIrouter = express.Router();
@@ -15,5 +16,6 @@ APIrouter.use('/auth', authRouter);
 APIrouter.use('/transaction',verifyToken, transactionRouter);
 APIrouter.use('/admin', verifyToken, adminRouter);
 // APIrouter.use('/transaction', transactionRouter);
+APIrouter.use('/receipt', receiptRouter);
 
 export default APIrouter;
