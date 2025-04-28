@@ -12,7 +12,7 @@ const transactionLogTable = async () => {
         updatedByuserId INT NOT NULL,
         transactionId INT NOT NULL,
         FOREIGN KEY (updatedByuserId) REFERENCES users(id),
-        FOREIGN KEY (vendorId) REFERENCES vendor(id),
+        FOREIGN KEY (vendorId) REFERENCES vendors(id),
         FOREIGN KEY (transactionId) REFERENCES transaction(id),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );

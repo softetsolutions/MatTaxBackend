@@ -450,9 +450,17 @@ export const getTransactionLogByTransactionId = async (req, res) => {
 };
 
 export const importTransactionCSV = async (req, res, next) => {
-  if (!req.file) {
+  if (!req.file || req.file.mimetype !== "text/csv" || !req.body.mapping) {
     return res.status(400).json({
-      error: `CSV file is required`,
+      error: `CSV file is required and mapping is required`,
+    });
+  }
+  const mapping = JSON.parse(req.body.mapping);
+  const requiredFields = [ "amount", "category", "type", "userId", "vendorId"];
+  const missingFields = requiredFields.filter((field) => !mapping[field]);
+  if (missingFields.length > 0) {
+    return res.status(400).json({
+      error: `Missing required fields in mapping: ${missingFields.join(", ")}`,
     });
   }
 
@@ -474,7 +482,6 @@ export const importTransactionCSV = async (req, res, next) => {
 
           for (const row of results) {
             const {
-              isDeleted,
               amount,
               category,
               type,
@@ -483,9 +490,9 @@ export const importTransactionCSV = async (req, res, next) => {
             } = row;
 
             await client.query(
-              `INSERT INTO transaction (isDeleted, amount, category, type, userId, vendorId)
-               VALUES ($1, $2, $3, $4, $5, $6)`,
-              [isDeleted === "true", amount, category, type, parseInt(userId), parseInt(vendorId)]
+              `INSERT INTO transaction ( amount, category, type, userId, vendorId)
+               VALUES ($1, $2, $3, $4, $5)`,
+              [amount, category, type, parseInt(userId), parseInt(vendorId)]
             );
           }
 
