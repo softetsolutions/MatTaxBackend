@@ -11,7 +11,7 @@ const transactionTable = async () => {
         userId INT NOT NULL,
         vendorId INT NOT NULL,
         FOREIGN KEY (userId) REFERENCES users(id),
-        FOREIGN KEY (vendorId) REFERENCES vendor(id),
+        FOREIGN KEY (vendorId) REFERENCES vendors(id),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
   `;

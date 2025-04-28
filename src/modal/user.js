@@ -11,7 +11,7 @@ const userTable = async () => {
         phone VARCHAR(100),
         address VARCHAR(100),
         verified BOOLEAN DEFAULT false,
-        isLocked VARCHAR(10) DEFAULT unlocked,
+        isLocked VARCHAR(10) DEFAULT 'unlocked',
         role VARCHAR(100) DEFAULT 'user',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
