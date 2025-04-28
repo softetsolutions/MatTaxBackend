@@ -38,6 +38,13 @@ export const createTransaction = async (req, res) => {
       .map((_, i) => `$${i + 1}`)
       .join(", ")}) RETURNING *;`;
     const result = await pool.query(query, Object.values(req.body));
+
+    //if file is uploaded, insert into receipt table
+    if (req.file) {
+      const { path: filepath, filename } = req.file;
+      const receiptQuery = `INSERT INTO receipt (filepath, filename, transactionId) VALUES ($1, $2, $3)`;
+      await pool.query(receiptQuery, [filepath, filename, result.rows[0].id]);
+    }
     res.status(200).json(result.rows[0]);
   } catch (error) {
     res.status(500).json({ error: error.message });
