@@ -4,6 +4,7 @@ const vendorTable = async () => {
   const query = `
     CREATE TABLE IF NOT EXISTS vendors (
       id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       name VARCHAR(100) NOT NULL,
       address VARCHAR(255),
       email1 VARCHAR(100) UNIQUE NOT NULL,

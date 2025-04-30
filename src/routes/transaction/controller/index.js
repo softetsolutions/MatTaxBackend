@@ -32,6 +32,22 @@ export const createTransaction = async (req, res) => {
       }
     }
 
+    // 🌟 Step 1: Handle vendorId (string = create vendor, number = use directly)
+    let vendorId = req.body.vendorId;
+
+    if (vendorId && isNaN(Number(vendorId))) {
+      // vendorId is a string (vendor name), create new vendor
+      const insertVendorQuery = `
+        INSERT INTO vendors (user_id, name)
+        VALUES ($1, $2)
+        RETURNING id
+      `;
+      const vendorResult = await pool.query(insertVendorQuery, [userId, vendorId]);
+      vendorId = vendorResult.rows[0].id;
+      req.body.vendorId = vendorId; // overwrite vendorId with numeric ID
+    }
+
+    // 🧾 Step 2: Save transaction
     const query = `INSERT INTO transaction (${Object.keys(req.body).join(
       ", "
     )}) VALUES (${Object.keys(req.body)
@@ -39,17 +55,19 @@ export const createTransaction = async (req, res) => {
       .join(", ")}) RETURNING *;`;
     const result = await pool.query(query, Object.values(req.body));
 
-    //if file is uploaded, insert into receipt table
+    // 📎 Step 3: Save receipt if file was uploaded
     if (req.file) {
       const { path: filepath, filename } = req.file;
       const receiptQuery = `INSERT INTO receipt (filepath, filename, transactionId) VALUES ($1, $2, $3)`;
       await pool.query(receiptQuery, [filepath, filename, result.rows[0].id]);
     }
+
     res.status(200).json(result.rows[0]);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
+
 
 export const deleteTransaction = async (req, res) => {
   try {
