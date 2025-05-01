@@ -6,7 +6,7 @@ const changesMap = ["amount", "category", "isdeleted", "type"];
 
 export const createTransaction = async (req, res) => {
   try {
-    const { userId, accountId } = req.query;
+    const { userId, accountId ,vendorId} = req.query;
   
     if (!userId) {
       return res.status(400).json({ error: "userId is required" });
@@ -32,8 +32,7 @@ export const createTransaction = async (req, res) => {
       }
     }
 
-    // 🌟 Step 1: Handle vendorId (string = create vendor, number = use directly)
-    let vendorId = req.body.vendorId;
+
 
     if (vendorId && isNaN(Number(vendorId))) {
       // vendorId is a string (vendor name), create new vendor
