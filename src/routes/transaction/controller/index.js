@@ -7,7 +7,7 @@ const changesMap = ["amount", "category", "isdeleted", "type"];
 export const createTransaction = async (req, res) => {
   try {
     const { userId, accountId } = req.query;
-
+  
     if (!userId) {
       return res.status(400).json({ error: "userId is required" });
     }
