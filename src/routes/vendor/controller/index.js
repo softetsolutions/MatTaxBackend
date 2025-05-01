@@ -3,23 +3,30 @@ import { pool } from "../../../config/database.js";
 
 // add user_id in values 
 export const createVendor = async (req, res, next) => {
-    const {userId} = req.body 
-    const { name, address, email1, email2, phone1, phone2 } = req.body;
-    const response = await pool.query("SELECT * FROM users WHERE id = $1", [userId]);
-    const user = response.rows[0];
-    console.log(user)
-    const query = `INSERT INTO vendors (name, address, email1, email2, phone1, phone2)
-                   VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`;
-    // const values = [name, address, email1, email2, phone1, phone2];
-    const values = [userId, name, address, email1, email2, phone1, phone2];
-
+    const { userId, name, address, email1, email2, phone1, phone2 } = req.body;
+  
     try {
-        const { rows } = await pool.query(query, values);
-        res.status(201).json(rows[0]);
+      const response = await pool.query("SELECT * FROM users WHERE id = $1", [userId]);
+      const user = response.rows[0];
+  
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+  
+      const query = `
+        INSERT INTO vendors (name, address, email1, email2, phone1, phone2, user_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING *;
+      `;
+      const values = [name, address, email1, email2, phone1, phone2, userId];
+  
+      const { rows } = await pool.query(query, values);
+      res.status(201).json(rows[0]);
     } catch (error) {
-        next(error);
+      next(error);
     }
-};
+  };
+  
 
 // export const getVendors = async (req, res, next) => {
 //     try {
