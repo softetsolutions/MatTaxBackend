@@ -6,10 +6,11 @@ import {
   updateVendor,
   deleteVendor,
 } from "./controller/index.js";
+import verifyToken from "../../middleware/verifyAuth.js";
 
 const vendorRouter = express.Router();
 
-vendorRouter.post("/create", createVendor);
+vendorRouter.post("/create", createVendor); 
 vendorRouter.get("/gets", getVendors);
 vendorRouter.get("/getbyId/:id", getVendorById);
 vendorRouter.put("/update/:id", updateVendor);

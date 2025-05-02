@@ -7,7 +7,7 @@ const changesMap = ["amount", "category", "isdeleted", "type"];
 export const createTransaction = async (req, res) => {
   try {
     const { userId, accountId } = req.query;
-
+  
     if (!userId) {
       return res.status(400).json({ error: "userId is required" });
     }
@@ -32,6 +32,28 @@ export const createTransaction = async (req, res) => {
       }
     }
 
+const {
+  vendorId,
+  address = null,
+  email1 = null,
+  email2 = null,
+  phone1 = null,
+  phone2 = null,
+} = req.body;
+
+    if (vendorId && isNaN(Number(vendorId))) {
+      // vendorId is a string (vendor name), create new vendor
+      const insertVendorQuery = `
+      INSERT INTO vendors (user_id, name, address, email1, email2, phone1, phone2)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING *;
+    `;
+      const vendorResult = await pool.query(insertVendorQuery, [userId, vendorId,address,email1,email2,phone1,phone2]);
+      vendorId = vendorResult.rows[0].id;
+      req.body.vendorId = vendorId; // overwrite vendorId with numeric ID
+    }
+
+    // 🧾 Step 2: Save transaction
     const query = `INSERT INTO transaction (${Object.keys(req.body).join(
       ", "
     )}) VALUES (${Object.keys(req.body)
@@ -39,17 +61,19 @@ export const createTransaction = async (req, res) => {
       .join(", ")}) RETURNING *;`;
     const result = await pool.query(query, Object.values(req.body));
 
-    //if file is uploaded, insert into receipt table
+    // 📎 Step 3: Save receipt if file was uploaded
     if (req.file) {
       const { path: filepath, filename } = req.file;
       const receiptQuery = `INSERT INTO receipt (filepath, filename, transactionId) VALUES ($1, $2, $3)`;
       await pool.query(receiptQuery, [filepath, filename, result.rows[0].id]);
     }
+
     res.status(200).json(result.rows[0]);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
+
 
 export const deleteTransaction = async (req, res) => {
   try {
