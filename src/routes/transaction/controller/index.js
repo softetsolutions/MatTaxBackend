@@ -6,7 +6,7 @@ const changesMap = ["amount", "category", "isdeleted", "type"];
 
 export const createTransaction = async (req, res) => {
   try {
-    const { userId, accountId ,vendorId} = req.query;
+    const { userId, accountId } = req.query;
   
     if (!userId) {
       return res.status(400).json({ error: "userId is required" });
@@ -32,16 +32,23 @@ export const createTransaction = async (req, res) => {
       }
     }
 
-
+const {
+  vendorId,
+  address = null,
+  email1 = null,
+  email2 = null,
+  phone1 = null,
+  phone2 = null,
+} = req.body;
 
     if (vendorId && isNaN(Number(vendorId))) {
       // vendorId is a string (vendor name), create new vendor
       const insertVendorQuery = `
-        INSERT INTO vendors (user_id, name)
-        VALUES ($1, $2)
-        RETURNING id
-      `;
-      const vendorResult = await pool.query(insertVendorQuery, [userId, vendorId]);
+      INSERT INTO vendors (user_id, name, address, email1, email2, phone1, phone2)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING *;
+    `;
+      const vendorResult = await pool.query(insertVendorQuery, [userId, vendorId,address,email1,email2,phone1,phone2]);
       vendorId = vendorResult.rows[0].id;
       req.body.vendorId = vendorId; // overwrite vendorId with numeric ID
     }

@@ -4,7 +4,7 @@ import { pool } from "../../../config/database.js";
 // add user_id in values 
 export const createVendor = async (req, res, next) => {
     const { userId, name, address, email1, email2, phone1, phone2 } = req.body;
-  
+    
     try {
       const response = await pool.query("SELECT * FROM users WHERE id = $1", [userId]);
       const user = response.rows[0];
