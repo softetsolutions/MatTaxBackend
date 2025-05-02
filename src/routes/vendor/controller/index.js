@@ -40,7 +40,7 @@ export const createVendor = async (req, res, next) => {
 
 // get vendor by user id
 export const getVendors = async (req, res, next) => {
-    const {userId} = req.body;
+    const {userId} = req.query;
 
     try {
         const { rows } = await pool.query('SELECT * FROM vendors WHERE user_id = $1', [userId]);
