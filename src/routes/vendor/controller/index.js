@@ -40,7 +40,7 @@ export const createVendor = async (req, res, next) => {
 
 // get vendor by user id
 export const getVendors = async (req, res, next) => {
-    const {userId} = req.body;
+    const {userId} = req.user.id;
 
     try {
         const { rows } = await pool.query('SELECT * FROM vendors WHERE user_id = $1', [userId]);
@@ -55,7 +55,7 @@ export const getVendors = async (req, res, next) => {
 // get vendor by id
 export const getVendorById = async (req, res, next) => {
     const { id } = req.params;
-    const {userId} = req.body;
+    const {userId} = req.user.id;
 
     try {
         const { rows } = await pool.query(
@@ -74,7 +74,7 @@ export const getVendorById = async (req, res, next) => {
 // update vendor with user id
 export const updateVendor = async (req, res, next) => {
     const { id } = req.params;
-    const {userId}  = req.body ;
+    const {userId}  = req.user.id;
     const { name, address, email1, email2, phone1, phone2 } = req.body;
 
        const query = `
@@ -99,7 +99,7 @@ export const updateVendor = async (req, res, next) => {
 // delete vendor with user id 
 export const deleteVendor = async (req, res, next) => {
     const { id } = req.params;
-    const {userId} = req.body ;
+    const {userId} = req.user.id;
 
     try {
         const result = await pool.query(
