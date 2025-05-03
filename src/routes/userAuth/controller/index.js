@@ -6,6 +6,7 @@ import { allowedRoutes } from "../../../config/constant.js";
 import {  verifyMail } from "../../../middleware/sendMail.js";
 import atob from "atob";
 import btoa from "btoa";
+import { OAuth2Client } from "google-auth-library";
 // User Login
 const twitterClient = new TwitterApi({
   clientId: process.env.TWITTER_CLIENT_ID,
@@ -166,5 +167,57 @@ export const logout = async (req, res) => {
     return res.status(200).json({ message: "Logout successful" });
   } catch (err) {
     return res.status(400).json(err);
+  }
+};
+
+//login with google
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+export const loginWithGoogle = async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({ message: "Google token is required" });
+    }
+
+    const ticket = await client.verifyIdToken({
+      idToken: token,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    const email = payload.email;
+
+    const query = `SELECT * FROM users WHERE email = $1`;
+    const result = await pool.query(query, [email]);
+    const user = result.rows[0];
+    if (!user) {
+      return res.status(404).json({ message: "User does not exists please signup" });
+    }
+    if (!user.verified) {
+      return res.status(403).json({ message: "User account is not verified" });
+    }
+    if (user.islocked === 'locked') {
+      return res.status(403).json({ message: "User account is locked" });
+    }
+    const tokenData = { id: user.id, role: user.role, allowedRoutes: allowedRoutes[user.role] };
+    // Generate new token
+    const authToken = jsonwebtoken.sign(
+      tokenData,
+      process.env.JWT_KEY,
+      {
+        expiresIn: `6h`,
+      }
+    );
+    res.cookie("authToken", authToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 60 * 60 * 6000, // 1 hour
+      sameSite: "Strict",
+    });
+    return res.status(200).json({ data: authToken });
+  } catch (error) {
+    return res.status(500).json({ message: "Google login failed", error: error.message });
   }
 };

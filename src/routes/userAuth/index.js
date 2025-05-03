@@ -1,5 +1,5 @@
 import express from "express";
-import {createUser, login, logout, twitterAuth, twitterCallBackAuth, verifyUser} from "./controller/index.js";
+import {createUser, login, loginWithGoogle, logout, twitterAuth, twitterCallBackAuth, verifyUser} from "./controller/index.js";
 import passport from "passport";
 const authRouter = express.Router();
 
@@ -13,5 +13,6 @@ authRouter.get('/google/callback', passport.authenticate('google', { failureRedi
 // authRouter.get('/facebook/callback', passport.authenticate('facebook', { failureRedirect: (req, res) => { return res.json({ Error: 'error' }) } }),(req,res)=>res.json({message:"logined"}));
 authRouter.get('/twitter', twitterAuth);
 authRouter.get('/twitter/callback', twitterCallBackAuth);
+authRouter.post('/google-login', loginWithGoogle);
 
 export default authRouter;
