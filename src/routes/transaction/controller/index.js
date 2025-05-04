@@ -508,7 +508,9 @@ export const importTransactionCSV = async (req, res, next) => {
     const parts = dateStr.split("/");
     if (parts.length !== 3) return null;
     const [day, month, year] = parts;
-    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+    const isoStr = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+    const localDate = new Date(`${isoStr}T00:00:00`); // Ensure local time, not UTC
+    return localDate;
   };
 
   try {
@@ -518,11 +520,10 @@ export const importTransactionCSV = async (req, res, next) => {
 
     for await (const row of parser) {
       // Skip header row if it contains column names
-      if (isFirstRow && row.every((col) => isNaN(Number(col) === false))) {
+      if (isFirstRow && row.every((col) => isNaN(Number(col)))) {
         isFirstRow = false;
         continue;
       }
-
       const moneyInRaw = mapping.moneyIn ? row[mapping.moneyIn] : null;
       const moneyOutRaw = mapping.moneyOut ? row[mapping.moneyOut] : null;
       const moneyInAndMoneyOutRaw = mapping.moneyInAndMoneyOut
@@ -561,6 +562,7 @@ export const importTransactionCSV = async (req, res, next) => {
         userId: row[mapping.userId] || userId,
       });
     }
+
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
@@ -597,14 +599,19 @@ export const importTransactionCSV = async (req, res, next) => {
       }
 
       await client.query("COMMIT");
-      await fs.promises.unlink(req.file.path);
+      try {
+        await fs.promises.unlink(req.file.path);
+      } catch (err) {
+        console.error("Error deleting CSV file:", err.message);
+      }
+
       return res.status(201).json({ message: "CSV imported successfully" });
     } catch (err) {
       await client.query("ROLLBACK");
       return res.status(500).json({ error: `Database error: ${err.message}` });
     } finally {
       client.release();
-      fs.unlink(req.file.path, () => {}); // Delete uploaded CSV after processing
+      await fs.promises.unlink(req.file.path);
     }
   } catch (err) {
     return res.status(500).json({ error: `Unexpected error: ${err.message}` });
