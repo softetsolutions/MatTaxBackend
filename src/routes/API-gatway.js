@@ -11,11 +11,10 @@ import adminRouter from './admin/index.js';
 const APIrouter = express.Router();
 APIrouter.use('/accountant', verifyToken, authorizeAccountRouter);
 APIrouter.use('/user', verifyToken, userRouter);
-APIrouter.use('/vendor', vendorRouter);
+APIrouter.use('/vendor',verifyToken, vendorRouter);
 APIrouter.use('/auth', authRouter);
 APIrouter.use('/transaction',verifyToken, transactionRouter);
 APIrouter.use('/admin', verifyToken, adminRouter);
-// APIrouter.use('/transaction', transactionRouter);
-APIrouter.use('/receipt', receiptRouter);
+APIrouter.use('/receipt',verifyToken, receiptRouter);
 
 export default APIrouter;

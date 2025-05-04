@@ -1,34 +1,33 @@
 import jsonwebtoken from "jsonwebtoken";
-import EctDct from '../../../config/managePassword.js';
+import EctDct from "../../../config/managePassword.js";
 import { pool } from "../../../config/database.js";
 import { TwitterApi } from "twitter-api-v2";
 import { allowedRoutes } from "../../../config/constant.js";
-import {  verifyMail } from "../../../middleware/sendMail.js";
+import { verifyMail } from "../../../middleware/sendMail.js";
 import atob from "atob";
 import btoa from "btoa";
 import { OAuth2Client } from "google-auth-library";
-// User Login
-const twitterClient = new TwitterApi({
-  clientId: process.env.TWITTER_CLIENT_ID,
-  clientSecret: process.env.TWITTER_CLIENT_SECRET,
-});
 
-export const createUser = async (req, res)=> {
+export const createUser = async (req, res) => {
   try {
     req.body.password = EctDct.encrypt(req.body.password, process.env.KEY);
     req.body.verified = false;
-    const query = `INSERT INTO users (${Object.keys(req.body).join(', ')}) VALUES (${Object.keys(req.body).map((_, i) => `$${i + 1}`).join(', ')}) RETURNING *;`;
+    const query = `INSERT INTO users (${Object.keys(req.body).join(
+      ", "
+    )}) VALUES (${Object.keys(req.body)
+      .map((_, i) => `$${i + 1}`)
+      .join(", ")}) RETURNING *;`;
     const result = await pool.query(query, Object.values(req.body));
     const token = btoa(`${result.rows[0].id}`);
     console.log("token", token);
-    const verifyLink = `${'http://localhost:5173'}/verifyEmail/${token}`;
+    const verifyLink = `${"http://localhost:5173"}/verifyEmail/${token}`;
     verifyMail(req.body.email, verifyLink);
     res.status(200).json(result.rows[0]);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
-}
-export const verifyUser = async (req, res)=> {
+};
+export const verifyUser = async (req, res) => {
   try {
     const { token } = req.params;
     const id = atob(token);
@@ -37,21 +36,28 @@ export const verifyUser = async (req, res)=> {
     if (result.rowCount === 0) {
       return res.status(404).json({ message: "User not found" });
     }
-    res.status(200).json({ message: "User verified successfully", user: result.rows[0].email });
+    res.status(200).json({
+      message: "User verified successfully",
+      user: result.rows[0].email,
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
-}
+};
+
+const twitterClient = new TwitterApi({
+  appKey: process.env.TWITTER_CLIENT_ID,
+  appSecret: process.env.TWITTER_CLIENT_SECRET,
+});
 
 export const twitterAuth = async (req, res) => {
   try {
-    const { url, codeVerifier, state } = twitterClient.generateOAuth2AuthLink(
-      process.env.TWITTER_CALLBACK_URL,
-      { scope: ["tweet.read", "users.read", "offline.access"] }
-    );
+    const { url, oauth_token, oauth_token_secret } =
+      await twitterClient.generateAuthLink(process.env.TWITTER_CALLBACK_URL);
 
-    req.session.codeVerifier = codeVerifier;
-    req.session.oauthState = state;
+    // Store tokens in session
+    req.session.oauth_token = oauth_token;
+    req.session.oauth_token_secret = oauth_token_secret;
 
     res.redirect(url);
   } catch (error) {
@@ -61,29 +67,61 @@ export const twitterAuth = async (req, res) => {
 };
 
 export const twitterCallBackAuth = async (req, res) => {
-  const { state, code } = req.query;
-  console.log("state", state);
-  if (!code || state !== req.session.oauthState) {
-    return res.status(400).send("Invalid OAuth request.");
+  const { oauth_token, oauth_verifier } = req.query;
+  if (oauth_token !== req.session.oauth_token) {
+    return res.status(400).send("OAuth token mismatch or expired.");
   }
-
+  if (!oauth_token || !oauth_verifier || !req.session.oauth_token_secret) {
+    return res.status(400).send("Invalid or expired OAuth callback.");
+  }
   try {
-    const { client: authClient, accessToken, refreshToken } =
-      await twitterClient.loginWithOAuth2({
-        code,
-        codeVerifier: req.session.codeVerifier,
-        redirectUri: process.env.TWITTER_CALLBACK_URL,
-      });
+    const {
+      client: loggedClient,
+      accessToken,
+      accessSecret,
+    } = await twitterClient.login(
+      oauth_token,
+      req.session.oauth_token_secret,
+      oauth_verifier
+    );
 
-    req.session.accessToken = accessToken;
-    req.session.refreshToken = refreshToken;
-
-    const { data: user } = await authClient.v2.me(); // Fetch user profile
-    console.log("User profile:", user);
-    res.send(`Welcome, ${user.name} (@${user.username})`);
+    const { data: twitterUser } = await loggedClient.v1.verifyCredentials({
+      include_email: true,
+    });
+    const email = twitterUser.email;
+    const query = `SELECT * FROM users WHERE email = $1`;
+    const result = await pool.query(query, [email]);
+    const user = result.rows[0];
+    if (!user) {
+      return res
+        .status(404)
+        .json({ message: "User does not exists please signup" });
+    }
+    if (!user.verified) {
+      return res.status(403).json({ message: "User account is not verified" });
+    }
+    if (user.islocked === "locked") {
+      return res.status(403).json({ message: "User account is locked" });
+    }
+    const tokenData = {
+      id: user.id,
+      role: user.role,
+      allowedRoutes: allowedRoutes[user.role],
+    };
+    // Generate new token
+    const authToken = jsonwebtoken.sign(tokenData, process.env.JWT_KEY, {
+      expiresIn: `6h`,
+    });
+    res.cookie("authToken", authToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 60 * 60 * 6000, // 1 hour
+      sameSite: "Strict",
+    });
+    return res.status(200).json({ data: authToken });
   } catch (error) {
-    console.error("Error during Twitter authentication:", error);
-    res.status(500).send("Authentication failed.");
+    console.error("Error during Twitter callback:", error);
+    res.status(500).send("Twitter login failed.");
   }
 };
 
@@ -93,39 +131,30 @@ export const login = async (req, res) => {
     const query = `SELECT * FROM users WHERE email = $1`;
     // const query = `SELECT * FROM users WHERE email = $1 AND verified IS true AND islocked = 'unlocked'`;
     const result = await pool.query(query, [email]);
-    const user = result.rows[0]; 
+    const user = result.rows[0];
     if (!user) {
-      return res.status(404).json({ message: "User does not exists please signup" });
+      return res
+        .status(404)
+        .json({ message: "User does not exists please signup" });
     }
     if (!user.verified) {
       return res.status(403).json({ message: "User account is not verified" });
     }
-    if(user.islocked === 'locked') {
+    if (user.islocked === "locked") {
       return res.status(403).json({ message: "User account is locked" });
     }
     const isPasswordValid = await EctDct.decrypt(password, user.password);
     if (!isPasswordValid) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
-    const tokenData = { id: user.id, role: user.role, allowedRoutes: allowedRoutes[user.role] };
-    // Generate new token
-    const authToken = jsonwebtoken.sign(
-      tokenData,
-      process.env.JWT_KEY,
-      {
-        expiresIn: `6h`,
-      }
-    );
-    // const id = user.id;
-    // const body = { token: authToken };
-
-    // const fields = Object.keys(body);
-    // const set = fields.map((field, i) => `${field} = $${i + 1}`).join(', ');
-    // const updateUser = `UPDATE users SET ${set} WHERE id = ${id} RETURNING *`;
-
-    // const updatedUser = await pool.query(updateUser, Object.values(body));
-    // req.user = updatedUser.rows[0];
-    // Set token in cookies
+    const tokenData = {
+      id: user.id,
+      role: user.role,
+      allowedRoutes: allowedRoutes[user.role],
+    };
+    const authToken = jsonwebtoken.sign(tokenData, process.env.JWT_KEY, {
+      expiresIn: `6h`,
+    });
     res.cookie("authToken", authToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -133,32 +162,15 @@ export const login = async (req, res) => {
       sameSite: "Strict",
     });
     return res.status(200).json({ data: authToken });
-  }
-  catch (error) {
+  } catch (error) {
     return res
       .status(500)
       .json({ message: "Server error", error: error.message });
   }
-}
+};
 
-// User Logou
 export const logout = async (req, res) => {
   try {
-    // const token =
-    //   req.header("Authorization") || req.headers.cookie?.replace("authToken=", "");
-    // console.log("t", token);
-    // const body = { token: null };
-    // const fields = Object.keys(body);
-    // const values = Object.values(body);
-
-    // if (!fields.length) {
-    //   throw new Error("No fields to update");
-    // }
-
-    // const set = fields.map((field, i) => `${field} = $${i + 1}`).join(", ");
-    // const query = `UPDATE users SET ${set} WHERE token = $${fields.length + 1} RETURNING *`;
-    // const result = await pool.query(query, [...values, token]);
-    // user = result.rows[0];
     res.clearCookie("authToken", {
       httpOnly: true,
       secure: true,
@@ -169,20 +181,32 @@ export const logout = async (req, res) => {
     return res.status(400).json(err);
   }
 };
-
-//login with google
-const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const oauth2Client = new OAuth2Client(
+  process.env.GOOGLE_CLIENT_ID,
+  process.env.GOOGLE_CLIENT_SECRET,
+  process.env.GOOGLE_CALLBACK_URL
+);
+export const googleAuth = async (req, res) => {
+  const authUrl = oauth2Client.generateAuthUrl({
+    access_type: "offline",
+    scope: ["profile", "email"],
+  });
+  res.redirect(authUrl);
+};
 
 export const loginWithGoogle = async (req, res) => {
   try {
-    const { token } = req.body;
+    const code = req.query.code;
 
-    if (!token) {
-      return res.status(400).json({ message: "Google token is required" });
+    if (!code) {
+      return res.status(400).json({ message: "Missing authorization code" });
     }
 
-    const ticket = await client.verifyIdToken({
-      idToken: token,
+    const { tokens } = await oauth2Client.getToken(code);
+    req.session.tokens = tokens;
+    oauth2Client.setCredentials(tokens);
+    const ticket = await oauth2Client.verifyIdToken({
+      idToken: tokens.id_token,
       audience: process.env.GOOGLE_CLIENT_ID,
     });
 
@@ -193,23 +217,25 @@ export const loginWithGoogle = async (req, res) => {
     const result = await pool.query(query, [email]);
     const user = result.rows[0];
     if (!user) {
-      return res.status(404).json({ message: "User does not exists please signup" });
+      return res
+        .status(404)
+        .json({ message: "User does not exists please signup" });
     }
     if (!user.verified) {
       return res.status(403).json({ message: "User account is not verified" });
     }
-    if (user.islocked === 'locked') {
+    if (user.islocked === "locked") {
       return res.status(403).json({ message: "User account is locked" });
     }
-    const tokenData = { id: user.id, role: user.role, allowedRoutes: allowedRoutes[user.role] };
+    const tokenData = {
+      id: user.id,
+      role: user.role,
+      allowedRoutes: allowedRoutes[user.role],
+    };
     // Generate new token
-    const authToken = jsonwebtoken.sign(
-      tokenData,
-      process.env.JWT_KEY,
-      {
-        expiresIn: `6h`,
-      }
-    );
+    const authToken = jsonwebtoken.sign(tokenData, process.env.JWT_KEY, {
+      expiresIn: `6h`,
+    });
     res.cookie("authToken", authToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -217,7 +243,13 @@ export const loginWithGoogle = async (req, res) => {
       sameSite: "Strict",
     });
     return res.status(200).json({ data: authToken });
-  } catch (error) {
-    return res.status(500).json({ message: "Google login failed", error: error.message });
+  } catch (err) {
+    console.error(
+      "❌ Error during Google auth:",
+      err.response?.data || err.message
+    );
+    res
+      .status(500)
+      .json({ message: "Authentication failed", error: err.message });
   }
 };
