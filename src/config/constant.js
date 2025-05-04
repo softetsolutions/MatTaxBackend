@@ -1,5 +1,5 @@
 export const allowedRoutes = {
-    user: ["dashboard","transactions","transactionlog","addaccountant","bin",],
-    accountant: ["dashboard","transactions","users","invitations"],
+    user: ["dashboard","transactions","transactionlog","addaccountant","bin","accounts"],
+    accountant: ["dashboard","transactions","transactionlog","users","invitations"],
     admin: ["dashboard","allUsers","allAccountants"],
 }
