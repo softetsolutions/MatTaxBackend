@@ -1,5 +1,5 @@
 import { pool } from "../../../config/database.js";
-import {parse} from "csv-parse";
+import { parse } from "csv-parse";
 import fs from "fs";
 
 const changesMap = ["amount", "category", "isdeleted", "type"];
@@ -8,13 +8,18 @@ export const createTransaction = async (req, res) => {
   try {
     const { userId, accountId } = req.query;
     let { vendorId } = req.body;
-  
+
     if (!userId) {
       return res.status(400).json({ error: "userId is required" });
     }
     console.log("vendorId", vendorId, isNaN(Number(vendorId)));
-    if(vendorId === "") return res.status(400).json({ error: "vendorId or vendor name is required" });
-    const userResult = await pool.query("SELECT * FROM users WHERE id = $1", [userId]);
+    if (vendorId === "")
+      return res
+        .status(400)
+        .json({ error: "vendorId or vendor name is required" });
+    const userResult = await pool.query("SELECT * FROM users WHERE id = $1", [
+      userId,
+    ]);
     if (userResult.rows.length === 0) {
       return res.status(404).json({ error: "User not found" });
     }
@@ -33,15 +38,26 @@ export const createTransaction = async (req, res) => {
     }
     if (vendorId && isNaN(Number(vendorId))) {
       // vendorId is a string (vendor name), create new vendor
-      const insertVendorQuery = `
-      INSERT INTO vendors (user_id, name)
-      VALUES ($1, $2)
-      RETURNING *;
-    `;
-      const vendorResult = await pool.query(insertVendorQuery, [userId, vendorId]);
-      vendorId = vendorResult.rows[0].id;
+      const isVendor = await pool.query(
+        "SELECT * FROM vendors WHERE name = $1 AND user_id = $2",
+        [vendorId, userId]
+      );
+      if (isVendor.rows.length > 0) {
+        vendorId = isVendor.rows[0].id;
+      } else {
+        const insertVendorQuery = `
+        INSERT INTO vendors (user_id, name)
+        VALUES ($1, $2)
+        RETURNING *;
+      `;
+        const vendorResult = await pool.query(insertVendorQuery, [
+          userId,
+          vendorId,
+        ]);
+        vendorId = vendorResult.rows[0].id;
+      }
     }
-    req.body.vendorId = vendorId; 
+    req.body.vendorId = vendorId;
     // 🧾 Step 2: Save transaction
     const query = `INSERT INTO transaction (${Object.keys(req.body).join(
       ", "
@@ -62,7 +78,6 @@ export const createTransaction = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
-
 
 export const deleteTransaction = async (req, res) => {
   try {
@@ -465,15 +480,15 @@ export const getTransactionLogByTransactionId = async (req, res) => {
 export const importTransactionCSV = async (req, res, next) => {
   const userId = req.user.id;
 
-  if (!req.file || req.file.mimetype !== 'text/csv' || !req.body.mapping) {
-    return res.status(400).json({ error: 'CSV file and mapping are required' });
+  if (!req.file || req.file.mimetype !== "text/csv" || !req.body.mapping) {
+    return res.status(400).json({ error: "CSV file and mapping are required" });
   }
 
   let mapping;
   try {
     mapping = JSON.parse(req.body.mapping);
   } catch (err) {
-    return res.status(400).json({ error: 'Invalid JSON in mapping' });
+    return res.status(400).json({ error: "Invalid JSON in mapping" });
   }
 
   const isValidMapping =
@@ -481,19 +496,21 @@ export const importTransactionCSV = async (req, res, next) => {
     (!!mapping.moneyInAndMoneyOut && !!mapping.created_at);
 
   if (!isValidMapping) {
-    return res.status(400).json({ error: 'Missing required fields in mapping' });
+    return res
+      .status(400)
+      .json({ error: "Missing required fields in mapping" });
   }
 
   const results = [];
   let isFirstRow = true;
   const formatDate = (dateStr) => {
     // Assuming format is DD/MM/YYYY or D/M/YYYY
-    const parts = dateStr.split('/');
+    const parts = dateStr.split("/");
     if (parts.length !== 3) return null;
     const [day, month, year] = parts;
-    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
   };
-  
+
   try {
     const parser = fs
       .createReadStream(req.file.path)
@@ -501,7 +518,7 @@ export const importTransactionCSV = async (req, res, next) => {
 
     for await (const row of parser) {
       // Skip header row if it contains column names
-      if (isFirstRow && row.every(col => isNaN(Number(col) === false))) {
+      if (isFirstRow && row.every((col) => isNaN(Number(col) === false))) {
         isFirstRow = false;
         continue;
       }
@@ -509,23 +526,28 @@ export const importTransactionCSV = async (req, res, next) => {
       const moneyInRaw = mapping.moneyIn ? row[mapping.moneyIn] : null;
       const moneyOutRaw = mapping.moneyOut ? row[mapping.moneyOut] : null;
       const moneyInAndMoneyOutRaw = mapping.moneyInAndMoneyOut
-        ? row[mapping.moneyInAndMoneyOut] : null;
-      const moneyInAndMoneyOut = moneyInAndMoneyOutRaw ? parseFloat(moneyInAndMoneyOutRaw.replace(/,/g, '')) : 0;
-      const moneyIn = moneyInRaw ? parseFloat(moneyInRaw.replace(/,/g, '')) : 0;
-      const moneyOut = moneyOutRaw ? parseFloat(moneyOutRaw.replace(/,/g, '')) : 0;
+        ? row[mapping.moneyInAndMoneyOut]
+        : null;
+      const moneyInAndMoneyOut = moneyInAndMoneyOutRaw
+        ? parseFloat(moneyInAndMoneyOutRaw.replace(/,/g, ""))
+        : 0;
+      const moneyIn = moneyInRaw ? parseFloat(moneyInRaw.replace(/,/g, "")) : 0;
+      const moneyOut = moneyOutRaw
+        ? parseFloat(moneyOutRaw.replace(/,/g, ""))
+        : 0;
 
       let amount = 0;
-      let type = '';
+      let type = "";
 
       if (!isNaN(moneyIn) && moneyIn !== 0) {
         amount = Math.abs(moneyIn);
-        type = 'moneyIn';
+        type = "moneyIn";
       } else if (!isNaN(moneyOut) && moneyOut !== 0) {
         amount = Math.abs(moneyOut);
-        type = 'moneyOut';
+        type = "moneyOut";
       } else if (!isNaN(moneyInAndMoneyOut) && moneyInAndMoneyOut !== 0) {
         amount = Math.abs(moneyInAndMoneyOut);
-        type = moneyInAndMoneyOut > 0 ? 'moneyIn' : 'moneyOut';
+        type = moneyInAndMoneyOut > 0 ? "moneyIn" : "moneyOut";
       }
 
       results.push({
@@ -541,23 +563,44 @@ export const importTransactionCSV = async (req, res, next) => {
     }
     const client = await pool.connect();
     try {
-      await client.query('BEGIN');
+      await client.query("BEGIN");
 
       for (const row of results) {
-        const { amount, created_at, type, userId, desc3, desc1, desc2, balance } = row;
+        const {
+          amount,
+          created_at,
+          type,
+          userId,
+          desc3,
+          desc1,
+          desc2,
+          balance,
+        } = row;
 
         await client.query(
           `INSERT INTO transaction (amount, created_at, type, userId, desc3, desc1, desc2, balance, isDeleted, category, vendorId)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-          [amount, created_at, type,parseInt(userId), desc3, desc1, desc2, balance, false, "extra", 1]
+          [
+            amount,
+            created_at,
+            type,
+            parseInt(userId),
+            desc3,
+            desc1,
+            desc2,
+            balance,
+            false,
+            "extra",
+            1,
+          ]
         );
       }
 
-      await client.query('COMMIT');
+      await client.query("COMMIT");
       await fs.promises.unlink(req.file.path);
-      return res.status(201).json({ message: 'CSV imported successfully' });
+      return res.status(201).json({ message: "CSV imported successfully" });
     } catch (err) {
-      await client.query('ROLLBACK');
+      await client.query("ROLLBACK");
       return res.status(500).json({ error: `Database error: ${err.message}` });
     } finally {
       client.release();

@@ -8,22 +8,19 @@ import session from "express-session";
 import cookieParser from "cookie-parser";
 dotenv.config();
 
-
 const app = express();
 app.use(cors({
-  origin: 'http://localhost:5173', 
+  origin: ['http://localhost:5173','http://mattaxpro.com'], 
   credentials: true                
 }))
 app.use(express.json());
 app.use(cookieParser());
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET || 'your_secret_key',
-    resave: false,
-    saveUninitialized: true,
-  })
-);
-
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your-secret',
+  resave: false,
+  saveUninitialized: true,
+  cookie: { secure: false }, // Set to true only if using HTTPS
+}));
 // Routes
 app.use("/", APIrouter);
 
