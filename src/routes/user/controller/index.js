@@ -12,7 +12,7 @@ export const getAllAccountant = async (req, res) => {
         u.fname,
         u.lname,
         u.email,
-        u.address,
+        u.city,
         CASE 
           WHEN a.userid IS NOT NULL THEN a.status
           ELSE 'unauthorized'
@@ -51,7 +51,7 @@ export const usersAuthAccountants = async (req, res) => {
       u.fname AS user_fname,
       u.lname AS user_lname,
       u.email AS user_email,
-      u.address AS user_address,
+      u.address_line1 AS user_address,
       u.phone AS user_phone,
       u.role AS user_role,
       u.islocked AS locked_status,
@@ -112,7 +112,7 @@ export const AccountantsAuthUsers = async (req, res) => {
         acc.fname AS accountant_fname,
         acc.lname AS accountant_lname,
         acc.email AS accountant_email,
-        acc.address AS accountant_address,
+        acc.address_line1 AS accountant_address,
         acc.phone AS accountant_phone,
         acc.role AS accountant_role,
         acc.islocked AS locked_status,

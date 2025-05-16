@@ -131,7 +131,7 @@ export const getAllAuthorizeUser = async (req, res) => {
         }
 
         const query = `
-            SELECT a.userid,u.fname,u.lname,u.phone,u.email,u.address,a.created_at 
+            SELECT a.userid,u.fname,u.lname,u.phone,u.email,u.city,a.created_at 
             FROM authorizeTable a LEFT JOIN users u ON a.userid = u.id
             WHERE accountId = $1
             AND status = 'approved';
