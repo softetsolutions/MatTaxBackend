@@ -3,28 +3,51 @@ import EctDct from "../../../config/managePassword.js";
 import { pool } from "../../../config/database.js";
 import { TwitterApi } from "twitter-api-v2";
 import { allowedRoutes } from "../../../config/constant.js";
-import { verifyMail } from "../../../middleware/sendMail.js";
+import { sendResetPasswordMail, verifyMail } from "../../../middleware/sendMail.js";
 import atob from "atob";
 import btoa from "btoa";
 import { OAuth2Client } from "google-auth-library";
 
+const frontEndUrl = process.env.FRONTEND_URL;
 export const createUser = async (req, res) => {
   try {
-    req.body.password = EctDct.encrypt(req.body.password, process.env.KEY);
-    req.body.verified = false;
-    const query = `INSERT INTO users (${Object.keys(req.body).join(
-      ", "
-    )}) VALUES (${Object.keys(req.body)
-      .map((_, i) => `$${i + 1}`)
-      .join(", ")}) RETURNING *;`;
-    const result = await pool.query(query, Object.values(req.body));
+    const { fname, lname, email, password, phone, address } = req.body;
+
+    if (!email || !password || !fname || !lname) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+    const ipAddress = req.ip || req.headers["x-forwarded-for"] || req.socket.remoteAddress;
+    const encryptedPassword = EctDct.encrypt(password, process.env.KEY);
+
+    const inputData = {
+      fname,
+      lname,
+      email,
+      password: encryptedPassword,
+      phone,
+      address,
+      verified: false,
+      ipAddress
+    };
+
+    const columns = Object.keys(inputData);
+    const values = Object.values(inputData);
+    const placeholders = columns.map((_, i) => `$${i + 1}`);
+
+    const query = `
+      INSERT INTO users (${columns.join(", ")})
+      VALUES (${placeholders.join(", ")})
+      RETURNING *;
+    `;
+    const result = await pool.query(query, values);
     const token = btoa(`${result.rows[0].id}`);
-    console.log("token", token);
-    const verifyLink = `${"http://localhost:5173"}/verifyEmail/${token}`;
-    verifyMail(req.body.email, verifyLink);
-    res.status(200).json(result.rows[0]);
+    const verifyLink = `${frontEndUrl}/verifyEmail/${token}`;
+    await verifyMail(email, verifyLink);
+
+    res.status(201).json({ message: "User created", user: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("Error creating user:", error);
+    res.status(500).json({ error: "Internal Server Error" });
   }
 };
 export const verifyUser = async (req, res) => {
@@ -38,6 +61,74 @@ export const verifyUser = async (req, res) => {
     }
     res.status(200).json({
       message: "User verified successfully",
+      user: result.rows[0].email,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+export const deleteAccount = async (req, res) => {
+};
+
+export const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    const query = `SELECT * FROM users WHERE email = $1`;
+    const result = await pool.query(query, [email]);
+    const user = result.rows[0];
+
+    if (!user) {
+      return res.status(404).json({ message: "User does not exist, please sign up" });
+    }
+
+    if (!user.verified) {
+      return res.status(403).json({ message: "User account is not verified" });
+    }
+
+    if (user.islocked === "locked") {
+      return res.status(403).json({ message: "User account is locked" });
+    }
+
+    // Create JWT token valid for 5 minutes
+    const token = jsonwebtoken.sign({ id: user.id }, process.env.JWT_KEY, { expiresIn: '5m' });
+
+    const resetUrl = `${frontEndUrl}/resetPassword/${token}`;
+    await sendResetPasswordMail(email, resetUrl); // Ensure sendMail accepts subject & content as needed
+    res.status(200).json({ message: "Reset link sent successfully" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const resetPassword = async (req, res) => {
+  try {
+    const { token } = req.query;
+    const { password } = req.body;
+
+    if (!token || !password) {
+      return res.status(400).json({ message: "Token and password are required" });
+    }
+
+    let decoded;
+    try {
+      decoded = jsonwebtoken.verify(token, process.env.JWT_KEY); // throws if expired or invalid
+    } catch (err) {
+      return res.status(401).json({ message: "Invalid or expired token" });
+    }
+
+    const userId = decoded.id;
+    const encryptedPassword = EctDct.encrypt(password, process.env.KEY);
+
+    const queryUpdate = `UPDATE users SET password = $1 WHERE id = $2 RETURNING email`;
+    const result = await pool.query(queryUpdate, [encryptedPassword, userId]);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json({
+      message: "Password updated successfully",
       user: result.rows[0].email,
     });
   } catch (error) {

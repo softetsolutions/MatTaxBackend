@@ -1,11 +1,14 @@
 import express from "express";
-import {createUser, login, loginWithGoogle, logout, twitterAuth, twitterCallBackAuth, verifyUser,googleAuth} from "./controller/index.js";
+import {createUser, login, loginWithGoogle, logout, twitterAuth, twitterCallBackAuth, verifyUser,googleAuth, forgotPassword, resetPassword, deleteAccount} from "./controller/index.js";
 const authRouter = express.Router();
 
 authRouter.post("/register", createUser);
 authRouter.post("/login", login);
 authRouter.post("/logout", logout);
 authRouter.get("/verify/:token", verifyUser);
+authRouter.post("/forgot-password", forgotPassword);
+authRouter.post("/reset-password", resetPassword);
+authRouter.post("/delete-account", deleteAccount);
 authRouter.get('/google', googleAuth);
 authRouter.get('/google-login', loginWithGoogle);
 authRouter.get('/twitter', twitterAuth);
