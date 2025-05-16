@@ -168,6 +168,80 @@ export const verifyMail = async (email, data) => {
   };
   sendMail(mailData);
 };
+export const sendResetPasswordMail = async (email, data) => {
+  const mailData = {
+    from: process.env.MAIL_EMAIL,
+    to: email,
+    subject: "Verify Email",
+    html: `
+        <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Reset Password</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8f8f8;
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 600px;
+            background-color: #ffffff;
+            margin: 40px auto;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h2 {
+            color: #333333;
+        }
+        p {
+            color: #555555;
+        }
+        .btn {
+            margin-top: 20px;
+            display: inline-block;
+            background-color: #dc3545;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .btn:hover {
+            background-color: #b02a37;
+        }
+        .footer {
+            margin-top: 40px;
+            font-size: 12px;
+            color: #999999;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Reset Your Password</h2>
+        <p>Hello,</p>
+        <p>We received a request to reset your password for your MatTax account. Click the button below to proceed:</p>
+        <a href="${data}" class="btn">Reset Password</a>
+        <p>If the button doesn't work, copy and paste the link below into your browser:</p>
+        <p><a href="${data}">${data}</a></p>
+        <p>If you didn’t request a password reset, please ignore this email. Your password will remain unchanged.</p>
+        <p>Best Regards,<br>The MatTax Family Team</p>
+        <div class="footer">
+            &copy; 2025 MatTax. All rights reserved.
+        </div>
+    </div>
+</body>
+</html>
+`,
+  };
+  sendMail(mailData);
+};
 
 function sendMail(mailData) {
   transporter.sendMail(mailData, (error, result) => {
