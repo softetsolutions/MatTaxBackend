@@ -7,6 +7,8 @@ const transactionTable = async () => {
         isDeleted BOOLEAN NOT NULL,
         amount VARCHAR(100) NOT NULL,
         category VARCHAR(100),
+        accountNo VARCHAR(100),
+        gst VARCHAR(100),
         type VARCHAR(100) NOT NULL,
         desc1 VARCHAR(100),
         desc2 VARCHAR(100),

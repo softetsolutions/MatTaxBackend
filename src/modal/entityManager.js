@@ -4,6 +4,8 @@ import transactionTable from "./transaction.js";
 import transactionLogTable from "./transactionLog.js";
 import authorizeTable from "./authorizeTable.js";
 import receiptTable from "./receiptTable.js";
+import accountNoTable from "./accountNo.js";
+import categoryTable from "./category.js";
 class entityManager{
     constructor(){
         userTable();
@@ -12,6 +14,8 @@ class entityManager{
         transactionLogTable();
         authorizeTable();
         receiptTable();
+        accountNoTable();
+        categoryTable();
     }
 }
 

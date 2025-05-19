@@ -5,8 +5,8 @@ import { deleteReceipt, updateReceipt, getReceipt, getTransactionDetailsFromReci
 const receiptRouter = express.Router();
 
 receiptRouter.delete("/:id", deleteReceipt);
-receiptRouter.get("/get/:id", getReceipt);
+receiptRouter.get("/:id", getReceipt);
 receiptRouter.put("/:id", upload.single("file"), updateReceipt); 
-receiptRouter.get("/extraction", upload.single("file"), getTransactionDetailsFromReciept); 
+receiptRouter.post("/extraction", upload.single("file"), getTransactionDetailsFromReciept); 
 
 export default receiptRouter;
