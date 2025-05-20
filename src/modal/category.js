@@ -6,11 +6,6 @@ const categoryTable = async () => {
       id SERIAL PRIMARY KEY,
       user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       name VARCHAR(100) NOT NULL,
-      address VARCHAR(255),
-      email1 VARCHAR(100) UNIQUE ,
-      email2 VARCHAR(100),
-      phone1 VARCHAR(20) ,
-      phone2 VARCHAR(20),
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
   `;

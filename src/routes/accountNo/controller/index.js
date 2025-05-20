@@ -1,7 +1,7 @@
 import { pool } from "../../../config/database.js";
 
 export const createAccountNo = async (req, res, next) => {
-  const { userId, name, address, email1, email2, phone1, phone2 } = req.body;
+  const { userId, accountNo } = req.body;
 
   try {
     const response = await pool.query("SELECT * FROM users WHERE id = $1", [
@@ -14,16 +14,16 @@ export const createAccountNo = async (req, res, next) => {
     }
 
     const query = `
-        INSERT INTO accountNo (name, address, email1, email2, phone1, phone2, user_id)
+        INSERT INTO accountNo (accountNo, user_id)
         VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING *;
       `;
-    const values = [name, address, email1, email2, phone1, phone2, userId];
+    const values = [accountNo, userId];
 
     const { rows } = await pool.query(query, values);
-    res.status(201).json(rows[0]);
+    res.status(200).json(rows[0]);
   } catch (error) {
-    next(error);
+    return res.status(500).json({ error: error.message });
   }
 };
 
@@ -37,7 +37,7 @@ export const getAccountNo = async (req, res, next) => {
     );
     res.json(rows);
   } catch (error) {
-    next(error);
+    return res.status(500).json({ error: error.message });
   }
 };
 
@@ -54,14 +54,14 @@ export const getAccountNoById = async (req, res, next) => {
       return res.status(404).json({ message: "accountNo not found" });
     res.json(rows[0]);
   } catch (error) {
-    next(error);
+    return res.status(500).json({ error: error.message });
   }
 };
 
 export const updateAccountNo = async (req, res, next) => {
   const { id } = req.params;
   const userId = req.user.id;
-  const { name, address, email1, email2, phone1, phone2 } = req.body;
+  const { accountNo } = req.body;
 
   const query = `
         UPDATE accountNo
@@ -69,14 +69,14 @@ export const updateAccountNo = async (req, res, next) => {
         WHERE id = $7 AND user_id = $8 RETURNING *
     `;
 
-  const values = [name, address, email1, email2, phone1, phone2, id, userId];
+  const values = [accountNo, id, userId];
   try {
     const { rows } = await pool.query(query, values);
     if (rows.length === 0)
       return res.status(404).json({ message: "accountNo not found" });
     res.json(rows[0]);
   } catch (error) {
-    next(error);
+    return res.status(500).json({ error: error.message });
   }
 };
 
@@ -93,6 +93,6 @@ export const deleteAccountNo = async (req, res, next) => {
       return res.status(404).json({ message: "accountNo not found" });
     res.status(204).send();
   } catch (error) {
-    next(error);
+    return res.status(500).json({ error: error.message });
   }
 };

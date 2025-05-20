@@ -11,7 +11,7 @@ import { OAuth2Client } from "google-auth-library";
 const frontEndUrl = process.env.FRONTEND_URL;
 export const createUser = async (req, res) => {
   try {
-    const { fname, lname, email, password, phone, address } = req.body;
+    const { fname, lname, email, password, phone } = req.body;
 
     if (!email || !password || !fname || !lname) {
       return res.status(400).json({ error: "Missing required fields" });
@@ -25,7 +25,6 @@ export const createUser = async (req, res) => {
       email,
       password: encryptedPassword,
       phone,
-      address,
       verified: false,
       ipAddress
     };
@@ -44,7 +43,7 @@ export const createUser = async (req, res) => {
     const verifyLink = `${frontEndUrl}/verifyEmail/${token}`;
     await verifyMail(email, verifyLink);
 
-    res.status(201).json({ message: "User created", user: result.rows[0] });
+    res.status(200).json({ message: "User created", user: result.rows[0] });
   } catch (error) {
     console.error("Error creating user:", error);
     res.status(500).json({ error: "Internal Server Error" });
@@ -105,7 +104,7 @@ export const resetPassword = async (req, res) => {
   try {
     const { token } = req.query;
     const { password } = req.body;
-
+    
     if (!token || !password) {
       return res.status(400).json({ message: "Token and password are required" });
     }

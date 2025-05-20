@@ -1,7 +1,7 @@
 import { pool } from "../../../config/database.js";
 
 export const createCategory = async (req, res, next) => {
-  const { userId, name, address, email1, email2, phone1, phone2 } = req.body;
+  const { userId, name } = req.body;
 
   try {
     const response = await pool.query("SELECT * FROM users WHERE id = $1", [
@@ -14,16 +14,16 @@ export const createCategory = async (req, res, next) => {
     }
 
     const query = `
-        INSERT INTO category (name, address, email1, email2, phone1, phone2, user_id)
+        INSERT INTO category (name, user_id)
         VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING *;
       `;
-    const values = [name, address, email1, email2, phone1, phone2, userId];
+    const values = [name, userId];
 
     const { rows } = await pool.query(query, values);
-    res.status(201).json(rows[0]);
+    res.status(200).json(rows[0]);
   } catch (error) {
-    next(error);
+    return res.status(500).json({ error: error.message });
   }
 };
 
@@ -37,7 +37,7 @@ export const getCategory = async (req, res, next) => {
     );
     res.json(rows);
   } catch (error) {
-    next(error);
+    return res.status(500).json({ error: error.message });
   }
 };
 
@@ -51,10 +51,10 @@ export const getCategoryById = async (req, res, next) => {
       [id, userId]
     );
     if (rows.length === 0)
-      return res.status(404).json({ message: "Vendor not found" });
+      return res.status(404).json({ message: "category not found" });
     res.json(rows[0]);
   } catch (error) {
-    next(error);
+    return res.status(500).json({ error: error.message });
   }
 };
 
@@ -76,7 +76,7 @@ export const updateCategory = async (req, res, next) => {
       return res.status(404).json({ message: "Vendor not found" });
     res.json(rows[0]);
   } catch (error) {
-    next(error);
+    return res.status(500).json({ error: error.message });
   }
 };
 
@@ -93,6 +93,6 @@ export const deleteCategory = async (req, res, next) => {
       return res.status(404).json({ message: "Vendor not found" });
     res.status(204).send();
   } catch (error) {
-    next(error);
+    return res.status(500).json({ error: error.message });
   }
 };

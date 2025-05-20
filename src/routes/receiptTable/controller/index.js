@@ -42,7 +42,7 @@ export const getReceipt = async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: "Receipt not found" });
+      return res.status(200).json({ error: "Receipt not found" });
     }
 
     const imageData = await fs.readFile(result.rows[0].filepath);
