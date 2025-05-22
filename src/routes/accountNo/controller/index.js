@@ -1,6 +1,6 @@
 import { pool } from "../../../config/database.js";
 
-export const createAccountNo = async (req, res, next) => {
+export const createAccountNo = async (req, res) => {
   const { userId, accountNo } = req.body;
 
   try {
@@ -15,7 +15,7 @@ export const createAccountNo = async (req, res, next) => {
 
     const query = `
         INSERT INTO accountNo (accountNo, user_id)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        VALUES ($1, $2)
         RETURNING *;
       `;
     const values = [accountNo, userId];
@@ -27,7 +27,7 @@ export const createAccountNo = async (req, res, next) => {
   }
 };
 
-export const getAccountNo = async (req, res, next) => {
+export const getAccountNo = async (req, res) => {
   const userId = req.user.id;
 
   try {
@@ -41,7 +41,7 @@ export const getAccountNo = async (req, res, next) => {
   }
 };
 
-export const getAccountNoById = async (req, res, next) => {
+export const getAccountNoById = async (req, res) => {
   const { id } = req.params;
   const userId = req.user.id;
 
@@ -58,15 +58,15 @@ export const getAccountNoById = async (req, res, next) => {
   }
 };
 
-export const updateAccountNo = async (req, res, next) => {
+export const updateAccountNo = async (req, res) => {
   const { id } = req.params;
   const userId = req.user.id;
   const { accountNo } = req.body;
 
   const query = `
         UPDATE accountNo
-        SET name = $1, address = $2, email1 = $3, email2 = $4, phone1 = $5, phone2 = $6
-        WHERE id = $7 AND user_id = $8 RETURNING *
+        SET name = $1
+        WHERE id = $2 AND user_id = $3 RETURNING *
     `;
 
   const values = [accountNo, id, userId];
@@ -80,7 +80,7 @@ export const updateAccountNo = async (req, res, next) => {
   }
 };
 
-export const deleteAccountNo = async (req, res, next) => {
+export const deleteAccountNo = async (req, res) => {
   const { id } = req.params;
   const userId = req.user.id;
 
@@ -91,7 +91,7 @@ export const deleteAccountNo = async (req, res, next) => {
     );
     if (result.rowCount === 0)
       return res.status(404).json({ message: "accountNo not found" });
-    res.status(204).send();
+    res.status(204).send(result.rows[0]);
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }

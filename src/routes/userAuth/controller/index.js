@@ -102,21 +102,29 @@ export const forgotPassword = async (req, res) => {
 
 export const resetPassword = async (req, res) => {
   try {
-    const { token } = req.query;
+    const { token, id } = req.query;
     const { password } = req.body;
+    let userId = id;
+    if (!password) {
+      return res.status(400).json({ message: " password is required" });
+    }
+    if(req.user.role === "admin" && !id){
+      return res.status(400).json({ message: " user id is required for Admin" });
+      
+    } else if(req.user && req.user.role !== "admin" && !token){
+      return res.status(400).json({ message: " token is required" });
+    }
+    if(token){
+      let decoded;
+      try {
+        decoded = jsonwebtoken.verify(token, process.env.JWT_KEY); // throws if expired or invalid
+      } catch (err) {
+        return res.status(401).json({ message: "Invalid or expired token" });
+      }
+
+      userId = decoded.id;
+    }
     
-    if (!token || !password) {
-      return res.status(400).json({ message: "Token and password are required" });
-    }
-
-    let decoded;
-    try {
-      decoded = jsonwebtoken.verify(token, process.env.JWT_KEY); // throws if expired or invalid
-    } catch (err) {
-      return res.status(401).json({ message: "Invalid or expired token" });
-    }
-
-    const userId = decoded.id;
     const encryptedPassword = EctDct.encrypt(password, process.env.KEY);
 
     const queryUpdate = `UPDATE users SET password = $1 WHERE id = $2 RETURNING email`;

@@ -1,6 +1,6 @@
 import { pool } from "../../../config/database.js";
 
-export const createCategory = async (req, res, next) => {
+export const createCategory = async (req, res) => {
   const { userId, name } = req.body;
 
   try {
@@ -15,7 +15,7 @@ export const createCategory = async (req, res, next) => {
 
     const query = `
         INSERT INTO category (name, user_id)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        VALUES ($1, $2 )
         RETURNING *;
       `;
     const values = [name, userId];
@@ -27,7 +27,7 @@ export const createCategory = async (req, res, next) => {
   }
 };
 
-export const getCategory = async (req, res, next) => {
+export const getCategory = async (req, res) => {
   const userId = req.user.id;
 
   try {
@@ -41,7 +41,7 @@ export const getCategory = async (req, res, next) => {
   }
 };
 
-export const getCategoryById = async (req, res, next) => {
+export const getCategoryById = async (req, res) => {
   const { id } = req.params;
   const userId = req.user.id;
 
@@ -58,29 +58,29 @@ export const getCategoryById = async (req, res, next) => {
   }
 };
 
-export const updateCategory = async (req, res, next) => {
+export const updateCategory = async (req, res) => {
   const { id } = req.params;
   const userId = req.user.id;
-  const { name, address, email1, email2, phone1, phone2 } = req.body;
+  const { name} = req.body;
 
   const query = `
         UPDATE category
-        SET name = $1, address = $2, email1 = $3, email2 = $4, phone1 = $5, phone2 = $6
-        WHERE id = $7 AND user_id = $8 RETURNING *
+        SET name = $1
+        WHERE id = $2 AND user_id = $3 RETURNING *
     `;
 
-  const values = [name, address, email1, email2, phone1, phone2, id, userId];
+  const values = [name, id, userId];
   try {
     const { rows } = await pool.query(query, values);
     if (rows.length === 0)
-      return res.status(404).json({ message: "Vendor not found" });
+      return res.status(404).json({ message: "category not found" });
     res.json(rows[0]);
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
 };
 
-export const deleteCategory = async (req, res, next) => {
+export const deleteCategory = async (req, res) => {
   const { id } = req.params;
   const userId = req.user.id;
 
@@ -90,8 +90,8 @@ export const deleteCategory = async (req, res, next) => {
       [id, userId]
     );
     if (result.rowCount === 0)
-      return res.status(404).json({ message: "Vendor not found" });
-    res.status(204).send();
+      return res.status(404).json({ message: "category not found" });
+    res.status(204).send(result.rows[0]);
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
