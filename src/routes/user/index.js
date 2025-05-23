@@ -12,7 +12,7 @@ userRouter.get("/:id", getByIdUser);
 userRouter.put("/:id", updateUser);
 userRouter.delete("/:id", deleteUser);
 userRouter.get("/accountants/:id", getAllAccountant);
-authRouter.get("/accountant/email/:email/:id", getAccountantByEmail);
+userRouter.get("/accountant/email/:email/:id", getAccountantByEmail);
 
 
 
