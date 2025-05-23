@@ -13,18 +13,15 @@ export const getAllAccountant = async (req, res) => {
         u.lname,
         u.email,
         u.city,
-        CASE 
-          WHEN a.userid IS NOT NULL THEN a.status
-          ELSE 'unauthorized'
-        END AS is_authorized
+        a.status AS is_authorized
       FROM
         users u
-      LEFT JOIN
+      INNER JOIN
         authorizetable a
-        ON u.id = a.accountid AND a.userid = $1
+        ON u.id = a.accountid
       WHERE
-        u.role = 'accountant';
-    `,
+        u.role = 'accountant' AND a.userid = $1;
+      `,
       [userId]
     );
 
@@ -33,6 +30,44 @@ export const getAllAccountant = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+export const getAccountantByEmail = async (req, res) => {
+  try {
+    const { email, id: userId } = req.params;
+
+    const result = await pool.query(
+      `
+      SELECT
+        u.id,
+        u.fname,
+        u.lname,
+        u.email,
+        u.city,
+        u.country,
+        u.role
+      FROM
+        users u
+      INNER JOIN
+        authorizetable a
+        ON u.id = a.accountid
+      WHERE
+        u.email = $1
+        AND u.role = 'accountant'
+        AND a.userid = $2;
+      `,
+      [email, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(403).json({ message: "Access denied or accountant not found" });
+    }
+
+    res.status(200).json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 
 export const getAllUser = async (req, res) => {
   try {
