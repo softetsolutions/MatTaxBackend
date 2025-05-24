@@ -13,15 +13,27 @@ export const createAccountNo = async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    const query = `
-        INSERT INTO accountNo (accountNo, user_id)
+    const accountNoResponse = await pool.query(
+      `SELECT * FROM accountno WHERE user_id = $1 and "accountNo" = $2`,
+      [userId, accountNo]
+    );
+
+    const accountNoAlreadyPresent = accountNoResponse.rows[0];
+    console.log(accountNoAlreadyPresent, "accountNoAlreadyPresent");
+
+    if (!accountNoAlreadyPresent) {
+      const query = `
+        INSERT INTO "accountno" ("accountNo", user_id)
         VALUES ($1, $2)
         RETURNING *;
       `;
-    const values = [accountNo, userId];
+      const values = [accountNo, userId];
 
-    const { rows } = await pool.query(query, values);
-    res.status(200).json(rows[0]);
+      const { rows } = await pool.query(query, values);
+      res.status(200).json(rows[0]);
+    } else {
+      res.status(200).json({ message: "accountNo already exist" });
+    }
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }

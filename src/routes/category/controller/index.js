@@ -13,15 +13,25 @@ export const createCategory = async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    const query = `
+    const categoryNameResponse = await pool.query(
+      "SELECT * FROM category WHERE user_id = $1 and name = $2",
+      [userId, name]
+    );
+
+    const categoryNameAlreadyPresent = categoryNameResponse.rows[0];
+
+    if (!categoryNameAlreadyPresent) {
+      const query = `
         INSERT INTO category (name, user_id)
         VALUES ($1, $2 )
         RETURNING *;
       `;
-    const values = [name, userId];
-
-    const { rows } = await pool.query(query, values);
-    res.status(200).json(rows[0]);
+      const values = [name, userId];
+      const { rows } = await pool.query(query, values);
+      res.status(200).json(rows[0]);
+    } else {
+      res.status(200).json({ message: "category already exist" });
+    }
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
@@ -61,7 +71,7 @@ export const getCategoryById = async (req, res) => {
 export const updateCategory = async (req, res) => {
   const { id } = req.params;
   const userId = req.user.id;
-  const { name} = req.body;
+  const { name } = req.body;
 
   const query = `
         UPDATE category
