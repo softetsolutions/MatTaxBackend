@@ -1,5 +1,8 @@
 import { pool } from "../../../config/database.js";
-import { sendDeleteConfirmationEmail } from "../../../middleware/sendMail.js";
+
+import jwt from 'jsonwebtoken';
+import { sendDeleteConfirmationEmail } from '../../../middleware/sendMail.js';
+
 export const sendDeleteEmail = async (req, res) => {
   const userId = req.user?.id;
 
@@ -7,9 +10,18 @@ export const sendDeleteEmail = async (req, res) => {
     const result = await pool.query("SELECT email FROM users WHERE id = $1", [userId]);
     const email = result.rows[0]?.email;
 
-    if (!email) return res.status(404).json({ message: "User not found" });
+    if (!email) {
+      return res.status(404).json({ message: "User not found" });
+    }
 
-    const emailResult = await sendDeleteConfirmationEmail(email);
+    // 🔐 Generate token
+    const token = jwt.sign({ id: userId, email }, process.env.JWT_KEY, {
+      expiresIn: '15m',
+    });
+
+    // 📧 Send confirmation email with token
+    const emailResult = await sendDeleteConfirmationEmail(email, token);
+
     if (!emailResult.success) throw new Error("Email send failed");
 
     res.json({ message: "Confirmation email sent successfully." });
@@ -17,24 +29,31 @@ export const sendDeleteEmail = async (req, res) => {
     console.error("Catch block error:", err);
     res.status(500).json({ message: "Error sending confirmation email." });
   }
-};
-
-
+}; 
 export const confirmDeleteAccount = async (req, res) => {
-  const userId = req.user?.id;
-
   try {
-    await pool.query("DELETE FROM receipts WHERE userid = $1", [userId]);
-    await pool.query("DELETE FROM transactions WHERE userid = $1", [userId]);
-    await pool.query("DELETE FROM users WHERE id = $1", [userId]);
+    console.log("confirmDelete route hit");
+    console.log("User object in req:", req.user);
 
-    res.json({ message: "Account deleted successfully." });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Failed to delete account." });
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: "User ID not found in request" });
+    }
+
+    await pool.query("DELETE FROM users WHERE id = $1", [userId]);
+        // const query = `DELETE FROM users WHERE id = ${id} RETURNING *`;
+        // const result = await pool.query(query);
+        // const user = result.rows[0];
+
+    res.status(200).json({ message: "Account deleted successfully" });
+  } catch (error) {
+    console.error("Error in confirmDelete:", error);
+    res.status(500).json({ error: "Failed to delete account" });
   }
 };
 
+
+  
 
 export const getAllAccountant = async (req, res) => {
   try {

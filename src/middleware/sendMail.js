@@ -249,11 +249,9 @@ function sendMail(mailData) {
     return console.log(result);
   });
 }
-
-export const sendDeleteConfirmationEmail = async (email) => {
+export const sendDeleteConfirmationEmail = async (email, token) => {
   try {
-   
-    const confirmationLink = `http://localhost:5173/confirmDeleteAccount`;
+    const confirmationLink = `http://localhost:5173/confirmDeleteAccount?token=${token}`;
 
     const mailOptions = {
       from: `"MaxTaxPro" <${process.env.MAIL_EMAIL}>`,
@@ -264,6 +262,7 @@ export const sendDeleteConfirmationEmail = async (email) => {
         <p>Click the button below to confirm deletion:</p>
         <a href="${confirmationLink}" style="padding: 10px 20px; background-color: red; color: white; text-decoration: none; border-radius: 
 5px;">Confirm Delete</a>
+        <p>This link will expire in 15 minutes.</p>
       `,
     };
 
@@ -274,4 +273,3 @@ export const sendDeleteConfirmationEmail = async (email) => {
     return { success: false, error: err };
   }
 };
-
