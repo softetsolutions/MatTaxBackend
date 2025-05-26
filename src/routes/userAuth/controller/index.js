@@ -11,7 +11,7 @@ import { OAuth2Client } from "google-auth-library";
 const frontEndUrl = process.env.FRONTEND_URL;
 export const createUser = async (req, res) => {
   try {
-    const { fname, lname, email, password, phone } = req.body;
+    const { fname, lname, email, password, phone, role } = req.body;
 
     if (!email || !password || !fname || !lname) {
       return res.status(400).json({ error: "Missing required fields" });
@@ -26,7 +26,8 @@ export const createUser = async (req, res) => {
       password: encryptedPassword,
       phone,
       verified: false,
-      ipAddress
+      ipAddress,
+      role
     };
 
     const columns = Object.keys(inputData);
@@ -108,7 +109,7 @@ export const resetPassword = async (req, res) => {
     if (!password) {
       return res.status(400).json({ message: " password is required" });
     }
-    if(req.user.role === "admin" && !id){
+    if(req.user && req.user.role === "admin" && !id){
       return res.status(400).json({ message: " user id is required for Admin" });
       
     } else if(req.user && req.user.role !== "admin" && !token){

@@ -13,6 +13,7 @@ const userTable = async () => {
         city VARCHAR(100),
         postcode VARCHAR(20),       
         country VARCHAR(100),
+        ipAddress VARCHAR(100),
         verified BOOLEAN DEFAULT false,
         isLocked VARCHAR(10) DEFAULT 'unlocked',
         role VARCHAR(100) DEFAULT 'user',
