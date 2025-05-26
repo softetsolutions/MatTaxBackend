@@ -252,14 +252,7 @@ function sendMail(mailData) {
 
 export const sendDeleteConfirmationEmail = async (email) => {
   try {
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.MAIL_EMAIL,
-        pass: process.env.MAIL_PASS, 
-      },
-    });
-
+   
     const confirmationLink = `http://localhost:5173/confirmDeleteAccount`;
 
     const mailOptions = {

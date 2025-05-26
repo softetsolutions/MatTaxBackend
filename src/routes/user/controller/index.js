@@ -1,32 +1,32 @@
 import { pool } from "../../../config/database.js";
 import { sendDeleteConfirmationEmail } from "../../../middleware/sendMail.js";
-
 export const sendDeleteEmail = async (req, res) => {
   const userId = req.user?.id;
 
   try {
-    const [rows] = await pool.query("SELECT email FROM users WHERE id = ?", [userId]);
-    const email = rows[0]?.email;
+    const result = await pool.query("SELECT email FROM users WHERE id = $1", [userId]);
+    const email = result.rows[0]?.email;
 
     if (!email) return res.status(404).json({ message: "User not found" });
 
-    const result = await sendDeleteConfirmationEmail(email);
-    if (!result.success) throw new Error("Email send failed");
+    const emailResult = await sendDeleteConfirmationEmail(email);
+    if (!emailResult.success) throw new Error("Email send failed");
 
     res.json({ message: "Confirmation email sent successfully." });
   } catch (err) {
-    console.error(err);
+    console.error("Catch block error:", err);
     res.status(500).json({ message: "Error sending confirmation email." });
   }
 };
+
 
 export const confirmDeleteAccount = async (req, res) => {
   const userId = req.user?.id;
 
   try {
-    await pool.query("DELETE FROM receipts WHERE userid = ?", [userId]);
-    await pool.query("DELETE FROM transactions WHERE userid = ?", [userId]);
-    await pool.query("DELETE FROM users WHERE id = ?", [userId]);
+    await pool.query("DELETE FROM receipts WHERE userid = $1", [userId]);
+    await pool.query("DELETE FROM transactions WHERE userid = $1", [userId]);
+    await pool.query("DELETE FROM users WHERE id = $1", [userId]);
 
     res.json({ message: "Account deleted successfully." });
   } catch (err) {
