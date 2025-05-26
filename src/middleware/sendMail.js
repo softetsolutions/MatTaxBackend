@@ -251,7 +251,7 @@ function sendMail(mailData) {
 }
 export const sendDeleteConfirmationEmail = async (email, token) => {
   try {
-    const confirmationLink = `http://localhost:5173/confirmDeleteAccount?token=${token}`;
+    const confirmationLink = `${process.env.FRONTEND_URL}/confirmDeleteAccount?token=${token}`;
 
     const mailOptions = {
       from: `"MaxTaxPro" <${process.env.MAIL_EMAIL}>`,

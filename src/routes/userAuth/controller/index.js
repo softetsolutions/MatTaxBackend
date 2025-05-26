@@ -105,13 +105,21 @@ export const resetPassword = async (req, res) => {
     const { token, id } = req.query;
     const { password } = req.body;
     let userId = id;
+    let isAdmin = false;
     if (!password) {
       return res.status(400).json({ message: " password is required" });
     }
-    if(req.user.role === "admin" && !id){
+    const adminId = req.user?.id;
+    if (adminId) {
+      const adminQuery = `SELECT * FROM users WHERE id = $1 and role = 'admin'`;
+      const adminResult = await pool.query(adminQuery, [adminId]);
+      if (adminResult.rowCount === 0) {
+        isAdmin = true;
+      }
+    }
+    if(isAdmin && !id){
       return res.status(400).json({ message: " user id is required for Admin" });
-      
-    } else if(req.user && req.user.role !== "admin" && !token){
+    } else if(req.user && !token){
       return res.status(400).json({ message: " token is required" });
     }
     if(token){

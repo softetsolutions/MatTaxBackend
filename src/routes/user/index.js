@@ -1,5 +1,5 @@
 import express from "express";
-import {deleteUser,getAllUser,getByIdUser,updateUser, getAllAccountant, usersAuthAccountants, AccountantsAuthUsers,getAccountantByEmail,sendDeleteEmail, confirmDeleteAccount} from "./controller/index.js";
+import {deleteUser,getAllUser,getByIdUser,updateUser, getAllAccountant, usersAuthAccountants, AccountantsAuthUsers,getAccountantByEmail,sendEmailForDeleteUser, confirmDeleteAccount} from "./controller/index.js";
 import verifyToken from "../../middleware/verifyAuth.js";
 
 
@@ -11,10 +11,10 @@ userRouter.get("/accountant-details", AccountantsAuthUsers);
 userRouter.get("/accountants", getAllAccountant);
 userRouter.get("/:id", getByIdUser);
 userRouter.put("/:id", updateUser);
-userRouter.delete("/:id", deleteUser);
+// userRouter.delete("/:id", deleteUser);
 userRouter.get("/accountants/:id", getAllAccountant);
-userRouter.get("/accountant/email/:email/:id", getAccountantByEmail);
-userRouter.post("/send-delete-email", verifyToken, sendDeleteEmail);
+userRouter.get("/accountant-by-email/:email", getAccountantByEmail);
+userRouter.post("/sendmail-for-delete-user", verifyToken, sendEmailForDeleteUser);
 userRouter.delete("/confirm-delete", verifyToken, confirmDeleteAccount);
 
 

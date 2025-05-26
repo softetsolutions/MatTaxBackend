@@ -3,7 +3,7 @@ import { pool } from "../../../config/database.js";
 import jwt from 'jsonwebtoken';
 import { sendDeleteConfirmationEmail } from '../../../middleware/sendMail.js';
 
-export const sendDeleteEmail = async (req, res) => {
+export const sendEmailForDeleteUser = async (req, res) => {
   const userId = req.user?.id;
 
   try {
@@ -31,29 +31,54 @@ export const sendDeleteEmail = async (req, res) => {
   }
 }; 
 export const confirmDeleteAccount = async (req, res) => {
-  try {
-    console.log("confirmDelete route hit");
-    console.log("User object in req:", req.user);
+  const client = await pool.connect();
 
+  try {
     const userId = req.user?.id;
+    const token = req.query?.token;
+
     if (!userId) {
       return res.status(401).json({ error: "User ID not found in request" });
     }
 
-    await pool.query("DELETE FROM users WHERE id = $1", [userId]);
-        // const query = `DELETE FROM users WHERE id = ${id} RETURNING *`;
-        // const result = await pool.query(query);
-        // const user = result.rows[0];
+    // Promisify jwt.verify for async/await
+    const decoded = await new Promise((resolve, reject) => {
+      jwt.verify(token, process.env.JWT_KEY, (err, decoded) => {
+        if (err) reject(err);
+        else resolve(decoded);
+      });
+    });
+
+    // Verify token email matches user email
+    const userRes = await client.query("SELECT email FROM users WHERE id = $1", [userId]);
+    const userEmail = userRes.rows[0]?.email;
+
+    if (decoded.email !== userEmail) {
+      return res.status(403).json({ error: "Unauthorized action" });
+    }
+
+    await client.query('BEGIN');
+
+    await client.query("DELETE FROM transactionLog WHERE transactionId IN (SELECT id FROM transaction WHERE userId = $1)", [userId]);
+    await client.query("DELETE FROM transaction WHERE userId = $1", [userId]);
+    await client.query("DELETE FROM vendors WHERE user_id = $1", [userId]);
+    await client.query("DELETE FROM category WHERE user_id = $1", [userId]);
+    await client.query("DELETE FROM authorizetable WHERE userId = $1", [userId]);
+    await client.query("DELETE FROM accountNo WHERE user_id = $1", [userId]);
+    await client.query("DELETE FROM users WHERE id = $1", [userId]);
+
+    await client.query('COMMIT');
 
     res.status(200).json({ message: "Account deleted successfully" });
   } catch (error) {
-    console.error("Error in confirmDelete:", error);
+    await client.query('ROLLBACK');
+    console.error("Error in confirmDeleteAccount:", error);
     res.status(500).json({ error: "Failed to delete account" });
+  } finally {
+    client.release();
   }
 };
 
-
-  
 
 export const getAllAccountant = async (req, res) => {
   try {
@@ -88,29 +113,24 @@ export const getAllAccountant = async (req, res) => {
 
 export const getAccountantByEmail = async (req, res) => {
   try {
-    const { email, id: userId } = req.params;
+    const { email } = req.params;
 
     const result = await pool.query(
       `
       SELECT
-        u.id,
-        u.fname,
-        u.lname,
-        u.email,
-        u.city,
-        u.country,
-        u.role
+        id,
+        fname,
+        lname,
+        email,
+        city,
+        country,
       FROM
-        users u
-      INNER JOIN
-        authorizetable a
-        ON u.id = a.accountid
+        users
       WHERE
-        u.email = $1
-        AND u.role = 'accountant'
-        AND a.userid = $2;
+        email = $1
+        AND role = 'accountant'
       `,
-      [email, userId]
+      [email]
     );
 
     if (result.rows.length === 0) {
