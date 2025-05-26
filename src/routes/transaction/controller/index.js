@@ -8,6 +8,9 @@ export const createTransaction = async (req, res) => {
   try {
     const { userId, accountId } = req.query;
     let { vendorId } = req.body;
+    const allowedFields = ['amount', 'type', 'vendorId', 'date', 'description','category','desc1','desc2','desc3','isDeleted','userId','accountNo', 'vat_gst_amount','vat_gst_percentage']; // whitelist
+    const keys = Object.keys(req.body).filter((key) => allowedFields.includes(key));
+    const values = keys.map((key) => req.body[key]);
 
     if (!userId) {
       return res.status(400).json({ error: "userId is required" });
@@ -59,12 +62,11 @@ export const createTransaction = async (req, res) => {
     }
     req.body.vendorId = vendorId;
     // 🧾 Step 2: Save transaction
-    const query = `INSERT INTO transaction (${Object.keys(req.body).join(
-      ", "
-    )}) VALUES (${Object.keys(req.body)
-      .map((_, i) => `$${i + 1}`)
-      .join(", ")}) RETURNING *;`;
-    const result = await pool.query(query, Object.values(req.body));
+    const query = `INSERT INTO transaction (${keys.join(", ")})
+      VALUES (${keys.map((_, i) => `$${i + 1}`).join(", ")})
+      RETURNING *`;
+
+    const result = await pool.query(query, values);
 
     // 📎 Step 3: Save receipt if file was uploaded
     if (req.file) {
