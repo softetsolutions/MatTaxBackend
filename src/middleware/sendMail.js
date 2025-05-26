@@ -249,3 +249,36 @@ function sendMail(mailData) {
     return console.log(result);
   });
 }
+
+export const sendDeleteConfirmationEmail = async (email) => {
+  try {
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.MAIL_EMAIL,
+        pass: process.env.MAIL_PASS, 
+      },
+    });
+
+    const confirmationLink = `http://localhost:5173/confirmDeleteAccount`;
+
+    const mailOptions = {
+      from: `"MaxTaxPro" <${process.env.MAIL_EMAIL}>`,
+      to: email,
+      subject: "Confirm Account Deletion",
+      html: `
+        <p>You requested to delete your MaxTaxPro account.</p>
+        <p>Click the button below to confirm deletion:</p>
+        <a href="${confirmationLink}" style="padding: 10px 20px; background-color: red; color: white; text-decoration: none; border-radius: 
+5px;">Confirm Delete</a>
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+    return { success: true };
+  } catch (err) {
+    console.error("Failed to send email:", err);
+    return { success: false, error: err };
+  }
+};
+
