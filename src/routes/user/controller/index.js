@@ -1,5 +1,85 @@
 import { pool } from "../../../config/database.js";
 
+import jwt from 'jsonwebtoken';
+import { sendDeleteConfirmationEmail } from '../../../middleware/sendMail.js';
+
+export const sendEmailForDeleteUser = async (req, res) => {
+  const userId = req.user?.id;
+
+  try {
+    const result = await pool.query("SELECT email FROM users WHERE id = $1", [userId]);
+    const email = result.rows[0]?.email;
+
+    if (!email) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // 🔐 Generate token
+    const token = jwt.sign({ id: userId, email }, process.env.JWT_KEY, {
+      expiresIn: '15m',
+    });
+
+    // 📧 Send confirmation email with token
+    const emailResult = await sendDeleteConfirmationEmail(email, token);
+
+    if (!emailResult.success) throw new Error("Email send failed");
+
+    res.json({ message: "Confirmation email sent successfully." });
+  } catch (err) {
+    console.error("Catch block error:", err);
+    res.status(500).json({ message: "Error sending confirmation email." });
+  }
+}; 
+export const confirmDeleteAccount = async (req, res) => {
+  const client = await pool.connect();
+
+  try {
+    const userId = req.user?.id;
+    const token = req.query?.token;
+
+    if (!userId) {
+      return res.status(401).json({ error: "User ID not found in request" });
+    }
+
+    // Promisify jwt.verify for async/await
+    const decoded = await new Promise((resolve, reject) => {
+      jwt.verify(token, process.env.JWT_KEY, (err, decoded) => {
+        if (err) reject(err);
+        else resolve(decoded);
+      });
+    });
+
+    // Verify token email matches user email
+    const userRes = await client.query("SELECT email FROM users WHERE id = $1", [userId]);
+    const userEmail = userRes.rows[0]?.email;
+
+    if (decoded.email !== userEmail) {
+      return res.status(403).json({ error: "Unauthorized action" });
+    }
+
+    await client.query('BEGIN');
+
+    await client.query("DELETE FROM transactionLog WHERE transactionId IN (SELECT id FROM transaction WHERE userId = $1)", [userId]);
+    await client.query("DELETE FROM transaction WHERE userId = $1", [userId]);
+    await client.query("DELETE FROM vendors WHERE user_id = $1", [userId]);
+    await client.query("DELETE FROM category WHERE user_id = $1", [userId]);
+    await client.query("DELETE FROM authorizetable WHERE userId = $1", [userId]);
+    await client.query("DELETE FROM accountNo WHERE user_id = $1", [userId]);
+    await client.query("DELETE FROM users WHERE id = $1", [userId]);
+
+    await client.query('COMMIT');
+
+    res.status(200).json({ message: "Account deleted successfully" });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error("Error in confirmDeleteAccount:", error);
+    res.status(500).json({ error: "Failed to delete account" });
+  } finally {
+    client.release();
+  }
+};
+
+
 export const getAllAccountant = async (req, res) => {
   try {
     const userId = req.params.id;
@@ -13,18 +93,15 @@ export const getAllAccountant = async (req, res) => {
         u.lname,
         u.email,
         u.city,
-        CASE 
-          WHEN a.userid IS NOT NULL THEN a.status
-          ELSE 'unauthorized'
-        END AS is_authorized
+        a.status AS is_authorized
       FROM
         users u
-      LEFT JOIN
+      INNER JOIN
         authorizetable a
-        ON u.id = a.accountid AND a.userid = $1
+        ON u.id = a.accountid
       WHERE
-        u.role = 'accountant';
-    `,
+        u.role = 'accountant' AND a.userid = $1;
+      `,
       [userId]
     );
 
@@ -33,6 +110,39 @@ export const getAllAccountant = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+export const getAccountantByEmail = async (req, res) => {
+  try {
+    const { email } = req.params;
+
+    const result = await pool.query(
+      `
+      SELECT
+        id,
+        fname,
+        lname,
+        email,
+        city,
+        country,
+      FROM
+        users
+      WHERE
+        email = $1
+        AND role = 'accountant'
+      `,
+      [email]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(403).json({ message: "Access denied or accountant not found" });
+    }
+
+    res.status(200).json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 
 export const getAllUser = async (req, res) => {
   try {
