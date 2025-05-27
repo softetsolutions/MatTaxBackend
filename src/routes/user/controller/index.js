@@ -118,17 +118,8 @@ export const getAccountantByEmail = async (req, res) => {
     const result = await pool.query(
       `
       SELECT
-        id,
-        fname,
-        lname,
-        email,
-        city,
-        country,
-      FROM
-        users
-      WHERE
-        email = $1
-        AND role = 'accountant'
+        id, fname, lname, email, phone, address_line1, city, country, postcode
+      FROM users WHERE email = $1 AND role = 'accountant'
       `,
       [email]
     );
