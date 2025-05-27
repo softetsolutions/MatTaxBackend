@@ -5,7 +5,7 @@ dotenv.config();
 
  const verifyToken = async (req, res, next) => {
   const token =
-    req.cookies.authToken || req.headers.authorization?.split(" ")[1];
+     req.headers.authorization?.split(" ")[1] || req.cookies.authToken; // first check for Authorization header, then check for cookie
 
   if (!token) {
     return res

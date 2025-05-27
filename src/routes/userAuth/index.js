@@ -1,7 +1,8 @@
 import express from "express";
-import {createUser, login, loginWithGoogle, logout, twitterAuth, twitterCallBackAuth, verifyUser,googleAuth, forgotPassword, resetPassword, deleteAccount} from "./controller/index.js";
+import {createUser, login, loginWithGoogle, logout, twitterAuth, twitterCallBackAuth, verifyUser,googleAuth, forgotPassword, resetPassword, deleteAccount, deviceRegister} from "./controller/index.js";
 const authRouter = express.Router();
 
+authRouter.post("/device/register", deviceRegister);
 authRouter.post("/register", createUser);
 authRouter.post("/login", login);
 authRouter.post("/logout", logout);

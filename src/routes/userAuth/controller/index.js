@@ -50,6 +50,48 @@ export const createUser = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
+export const deviceRegister = async (req, res) => {
+  try {
+    const { uid } = req.body;
+    const email = `${uid}@guest.com`;
+    const password = "guest123";
+    const fname = "john";
+    const ipAddress = req.ip || req.headers["x-forwarded-for"] || req.socket.remoteAddress;
+    const encryptedPassword = EctDct.encrypt(password, process.env.KEY);
+
+    const inputData = {
+      fname,
+      email,
+      password: encryptedPassword,
+      verified: true,
+      ipAddress,
+    };
+
+    const columns = Object.keys(inputData);
+    const values = Object.values(inputData);
+    const placeholders = columns.map((_, i) => `$${i + 1}`);
+
+    const query = `
+      INSERT INTO users (${columns.join(", ")})
+      VALUES (${placeholders.join(", ")})
+      RETURNING *;
+    `;
+    const result = await pool.query(query, values);
+    const tokenData = {
+      id: result.rows[0].id,
+      name: result.rows[0].fname,
+    };
+    
+    const authToken = jsonwebtoken.sign(tokenData, process.env.JWT_KEY, {
+      expiresIn: `6h`,
+    });
+    return res.status(200).json({ data: authToken });
+
+  } catch (error) {
+    console.error("Error creating user:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
 export const verifyUser = async (req, res) => {
   try {
     const { token } = req.params;
