@@ -59,6 +59,7 @@ export const confirmDeleteAccount = async (req, res) => {
 
     await client.query('BEGIN');
 
+    await client.query("DELETE FROM receipt WHERE transactionId IN (SELECT id FROM transaction WHERE userId = $1)", [userId]);
     await client.query("DELETE FROM transactionLog WHERE transactionId IN (SELECT id FROM transaction WHERE userId = $1)", [userId]);
     await client.query("DELETE FROM transaction WHERE userId = $1", [userId]);
     await client.query("DELETE FROM vendors WHERE user_id = $1", [userId]);

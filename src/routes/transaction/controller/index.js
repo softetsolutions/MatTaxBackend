@@ -301,11 +301,8 @@ export const getDeletedTransaction = async (req, res) => {
 
     const query = `SELECT * FROM transaction WHERE isdeleted = true AND userId = $1`;
     const result = await pool.query(query, [userId]);
-    if (result.rowCount > 0) {
-      res.status(200).json(result.rows);
-    } else {
-      res.status(404).json({ message: "No deleted transactions found" });
-    }
+    res.status(200).json(result.rows);
+    
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
