@@ -284,7 +284,7 @@ export const getDeletedTransaction = async (req, res) => {
       userId,
     ]);
     if (userResult.rows.length === 0) {
-      return res.status(404).json({ error: "User not found" });
+      return res.status(200).json(rows);
     }
 
     if (accountId) {
