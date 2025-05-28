@@ -3,23 +3,38 @@ import { parse } from "csv-parse";
 import fs from "fs";
 
 const changesMap = ["amount", "category", "isdeleted", "type"];
-
 export const createTransaction = async (req, res) => {
   try {
     const { userId, accountId } = req.query;
     let { vendorId } = req.body;
-    const allowedFields = ['amount', 'type', 'vendorId', 'date', 'description','category','desc1','desc2','desc3','isDeleted','userId','accountNo', 'vat_gst_amount','vat_gst_percentage']; // whitelist
-    const keys = Object.keys(req.body).filter((key) => allowedFields.includes(key));
-    const values = keys.map((key) => req.body[key]);
+
+    const allowedFields = [
+      "amount",
+      "type",
+      "vendorId",
+      "date",
+      "description",
+      "category",
+      "desc1",
+      "desc2",
+      "desc3",
+      "isDeleted",
+      "userId",
+      "accountNo",
+      "vat_gst_amount",
+      "vat_gst_percentage",
+    ];
 
     if (!userId) {
       return res.status(400).json({ error: "userId is required" });
     }
-    console.log("vendorId", vendorId, isNaN(Number(vendorId)));
-    if (vendorId === "")
+
+    if (vendorId === "") {
       return res
         .status(400)
         .json({ error: "vendorId or vendor name is required" });
+    }
+
     const userResult = await pool.query("SELECT * FROM users WHERE id = $1", [
       userId,
     ]);
@@ -39,8 +54,9 @@ export const createTransaction = async (req, res) => {
         });
       }
     }
+
+    // Handle vendor: create if name is given
     if (vendorId && isNaN(Number(vendorId))) {
-      // vendorId is a string (vendor name), create new vendor
       const isVendor = await pool.query(
         "SELECT * FROM vendors WHERE name = $1 AND user_id = $2",
         [vendorId, userId]
@@ -49,10 +65,10 @@ export const createTransaction = async (req, res) => {
         vendorId = isVendor.rows[0].id;
       } else {
         const insertVendorQuery = `
-        INSERT INTO vendors (user_id, name)
-        VALUES ($1, $2)
-        RETURNING *;
-      `;
+          INSERT INTO vendors (user_id, name)
+          VALUES ($1, $2)
+          RETURNING *;
+        `;
         const vendorResult = await pool.query(insertVendorQuery, [
           userId,
           vendorId,
@@ -60,15 +76,23 @@ export const createTransaction = async (req, res) => {
         vendorId = vendorResult.rows[0].id;
       }
     }
+
+    // Apply vendorId to body and recalculate keys/values
     req.body.vendorId = vendorId;
-    // 🧾 Step 2: Save transaction
+    req.body.userId = userId;
+
+    const keys = Object.keys(req.body).filter((key) =>
+      allowedFields.includes(key)
+    );
+    const values = keys.map((key) => req.body[key]);
+
     const query = `INSERT INTO transaction (${keys.join(", ")})
       VALUES (${keys.map((_, i) => `$${i + 1}`).join(", ")})
       RETURNING *`;
 
     const result = await pool.query(query, values);
 
-    // 📎 Step 3: Save receipt if file was uploaded
+    // Optional: save receipt
     if (req.file) {
       const { path: filepath, filename } = req.file;
       const receiptQuery = `INSERT INTO receipt (filepath, filename, transactionId) VALUES ($1, $2, $3)`;
@@ -77,9 +101,11 @@ export const createTransaction = async (req, res) => {
 
     res.status(200).json(result.rows[0]);
   } catch (error) {
+    console.error("Transaction creation error:", error);
     res.status(500).json({ error: error.message });
   }
 };
+
 
 export const deleteTransaction = async (req, res) => {
   try {
@@ -275,11 +301,8 @@ export const getDeletedTransaction = async (req, res) => {
 
     const query = `SELECT * FROM transaction WHERE isdeleted = true AND userId = $1`;
     const result = await pool.query(query, [userId]);
-    if (result.rowCount > 0) {
-      res.status(200).json(result.rows);
-    } else {
-      res.status(404).json({ message: "No deleted transactions found" });
-    }
+    res.status(200).json(result.rows);
+    
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
@@ -619,3 +642,5 @@ export const importTransactionCSV = async (req, res, next) => {
     return res.status(500).json({ error: `Unexpected error: ${err.message}` });
   }
 };
+
+

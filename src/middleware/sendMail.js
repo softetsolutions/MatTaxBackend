@@ -249,3 +249,27 @@ function sendMail(mailData) {
     return console.log(result);
   });
 }
+export const sendDeleteConfirmationEmail = async (email, token) => {
+  try {
+    const confirmationLink = `${process.env.FRONTEND_URL}/confirmDeleteAccount?token=${token}`;
+
+    const mailOptions = {
+      from: `"MaxTaxPro" <${process.env.MAIL_EMAIL}>`,
+      to: email,
+      subject: "Confirm Account Deletion",
+      html: `
+        <p>You requested to delete your MaxTaxPro account.</p>
+        <p>Click the button below to confirm deletion:</p>
+        <a href="${confirmationLink}" style="padding: 10px 20px; background-color: red; color: white; text-decoration: none; border-radius: 
+5px;">Confirm Delete</a>
+        <p>This link will expire in 15 minutes.</p>
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+    return { success: true };
+  } catch (err) {
+    console.error("Failed to send email:", err);
+    return { success: false, error: err };
+  }
+};
