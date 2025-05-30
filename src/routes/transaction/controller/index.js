@@ -541,22 +541,41 @@ export const getTransactionLogByTransactionId = async (req, res) => {
       `;
       const result = await pool.query(query, [transactionId, limit, offset]);
 
-      
-      const logs = result.rows.map((log) => {
-        return {
-          changes: Object.keys(log).reduce((acc, key) => {
-            if (log[key] && changesMap.includes(key)) {
-              acc.push({
-                field_changed: key,
-                new_value: log[key],
-              });
+      const logs = await Promise.all(
+      result.rows.map(async (log) => {
+       const changes = await Promise.all(
+       Object.keys(log).reduce((acc, key) => {
+        if (log[key] && changesMap.includes(key)) {
+          acc.push((async () => {
+            let value = log[key];
+
+           
+            if (key === "category") {
+              const categoryRes = await pool.query(
+                "SELECT name FROM category WHERE id = $1",
+                [value]
+              );
+              value = categoryRes.rows[0]?.name || value;
             }
-            return acc;
-          }, []),
-          edited_by: `${log.fname} ${log.lname}`,
-          timestamp: log.created_at,
-        };
-      });
+
+            return {
+              field_changed: key,
+              new_value: value,
+            };
+          })());
+        }
+        return acc;
+      }, [])
+    );
+
+    return {
+      changes,
+      edited_by: `${log.fname} ${log.lname}`,
+      timestamp: log.created_at,
+    };
+  })
+);
+
 
       return res.status(200).json({
         page: Number(page),
