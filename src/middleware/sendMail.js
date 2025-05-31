@@ -10,7 +10,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-export const approveMail = async (email) => {
+export const approveMail = async (email,data) => {
   const mailData = {
     from: process.env.MAIL_EMAIL,
     to: email,
@@ -73,9 +73,9 @@ export const approveMail = async (email) => {
         <p>Hello Admin,</p>
         <p>A new user has requested access to the MatTax dashboard. Please review their details and take the appropriate action.</p>
 
-        <p><strong>Name:</strong> {{user_name}}<br>
-           <strong>Email:</strong> {{user_email}}<br>
-           <strong>Requested Role:</strong> {{user_role}}</p>
+        <p><strong>Name:</strong> ${data.fname} ${data.lname}<br>
+           <strong>Email:</strong> ${data.email}<br>
+           <strong>Requested Role:</strong> ${data.role}</p>
 
         <p>You can authorize or decline the request by clicking below:</p>
         <a href="{{authorize_link}}" class="btn">Authorize</a>
@@ -92,7 +92,10 @@ export const approveMail = async (email) => {
 </body>
 </html>`,
   };
-  sendMail(mailData);
+    const res = await sendMail(mailData);
+    console.log(res);
+    return res;
+
 };
 export const verifyMail = async (email, data) => {
   const mailData = {
@@ -166,7 +169,9 @@ export const verifyMail = async (email, data) => {
 </html>
 `,
   };
-  sendMail(mailData);
+  const res = await sendMail(mailData);
+  console.log(res);
+    return res;
 };
 export const sendResetPasswordMail = async (email, data) => {
   const mailData = {
@@ -240,14 +245,24 @@ export const sendResetPasswordMail = async (email, data) => {
 </html>
 `,
   };
-  sendMail(mailData);
+  const res = await sendMail(mailData);
+  return res;
 };
 
-function sendMail(mailData) {
-  transporter.sendMail(mailData, (error, result) => {
-    if (error) return console.error(error);
-    return console.log(result);
-  });
+async function sendMail(mailData) {
+  try {
+    const result = await new Promise((resolve, reject) => {
+      transporter.sendMail(mailData, (error, info) => {
+        if (error) {
+          return reject(error);
+        }
+        resolve(info);
+      });
+    });
+    return { result };
+  } catch (error) {
+    return { error };
+  }
 }
 export const sendDeleteConfirmationEmail = async (email, token) => {
   try {

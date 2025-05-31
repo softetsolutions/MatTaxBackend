@@ -91,7 +91,25 @@ export const createTransaction = async (req, res) => {
       RETURNING *`;
 
     const result = await pool.query(query, values);
-
+    const body = result.rows[0];
+    if (result.rows.length > 0) {
+      const result = await pool.query(
+      "CALL update_transaction_with_log($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
+      [
+        body.transactionId,
+        query.amount,
+        query.category,
+        query.type,
+        query.accountId || query.userId,
+        query.accountNo,
+        query.vat_gst_amount,
+        query.vat_gst_percentage,
+        query.desc1,
+        query.desc2,
+        query.desc3
+      ]
+    );
+    }
     // Optional: save receipt
     if (req.file) {
       const { path: filepath, filename } = req.file;
@@ -409,13 +427,19 @@ export const updateTransaction = async (req, res) => {
     }
 
     const result = await pool.query(
-      "CALL update_transaction_with_log($1, $2, $3, $4, $5)",
+      "CALL update_transaction_with_log($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
       [
         req.body.transactionId,
         req.body.newAmount,
         req.body.newCategory,
         req.body.newType,
         req.body.updatedByUserId,
+        req.body.accountNo,
+        req.body.vat_gst_amount,
+        req.body.vat_gst_percentage,
+        req.body.desc1,
+        req.body.desc2,
+        req.body.desc3
       ]
     );
 

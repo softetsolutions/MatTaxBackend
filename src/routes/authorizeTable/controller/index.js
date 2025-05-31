@@ -3,83 +3,92 @@ import { approveMail } from "../../../middleware/sendMail.js";
 
 export const insertAuthorizeRecord = async (req, res) => {
     try {
-        let { status, ...restBody } = req.body;
-        const keys = Object.keys(restBody);
-        const values = Object.values(restBody);
+        const { status, accountId } = req.body;
 
+        if (!req.user || !req.user.id) {
+            return res.status(401).json({ error: 'Unauthorized access. Please log in again.' });
+        }
+
+        const userId = req.user.id;
+        const userRes = await pool.query(
+            'SELECT fname, lname, email, role FROM users WHERE id = $1',
+            [userId]
+        );
+        const user = userRes.rows[0];
+        if (!user) {
+            return res.status(404).json({ error: 'User not found.' });
+        }
         if (status && ['approved', 'rejected'].includes(status.toLowerCase())) {
             return res.status(400).json({ message: 'Status cannot be approved or rejected at creation.' });
         }
 
-        let userStatus;
-
-        // Check if authorization record exists for user
         const checkUserQuery = 'SELECT status FROM authorizeTable WHERE userId = $1 AND accountId = $2';
-        const userResult = await pool.query(checkUserQuery, [restBody.userId, restBody.accountId]);
-
-        // Insert new record if not found
-        if (userResult.rowCount === 0) {
-            userStatus = 'pending';
-            const insertInitialQuery = `
+        const authResult = await pool.query(checkUserQuery, [userId, accountId]);
+        if (authResult.rowCount === 0) {
+            const userStatus = 'pending';
+            const insertQuery = `
                 INSERT INTO authorizeTable (userId, accountId, status)
                 VALUES ($1, $2, $3)
                 RETURNING *;
             `;
-            const newUser = await pool.query(insertInitialQuery, [restBody.userId, restBody.accountId, userStatus]);
+            const insertResult = await pool.query(insertQuery, [userId, accountId, userStatus]);
 
-            const accountantResult = await pool.query("SELECT email FROM users WHERE id = $1", [restBody.accountId]);
-            const accountantEmail = accountantResult.rows[0]?.email;
+            const accountantResult = await pool.query(
+                'SELECT email FROM users WHERE id = $1',
+                [accountId]
+            );
+            const accountant = accountantResult.rows[0];
 
-            if (accountantEmail) {
-                const mailStatus = approveMail(accountantEmail);
-                console.log("Mail Status:", mailStatus);
+            if (accountant?.email) {
+                const mailStatus = await approveMail(accountant.email, user);
+                if (mailStatus?.error) {
+                    console.error('Mail sending failed:', mailStatus.error);
+                    return res.status(500).json({ error: 'Failed to send approval email.' });
+                }
+                console.log('Mail sent:', mailStatus);
             }
 
             return res.status(200).json({
                 message: 'New record inserted successfully.',
-                data: newUser.rows[0],
+                data: insertResult.rows[0],
             });
         }
 
-        // Existing record found
-        userStatus = userResult.rows[0].status;
+        const currentStatus = authResult.rows[0].status?.toLowerCase();
 
-        if (userStatus?.toLowerCase() === 'approved') {
-            return res.status(200).json({ message: 'User already approved' });
+        if (currentStatus === 'approved') {
+            return res.status(200).json({ message: 'User already approved.' });
         }
 
-        // Set default status
-        if (!status || userStatus?.toLowerCase() === 'rejected') {
-            status = 'pending';
-        }
+        const updatedStatus = (!status || currentStatus === 'rejected') ? 'pending' : status.toLowerCase();
 
-        // Prepare values and placeholders for UPSERT
-        keys.push('status');
-        values.push(status);
-
-        const upsertQuery = `
-            update authorizetable SET status = $1 WHERE userid = $2 AND accountid = $3
+        const updateQuery = `
+            UPDATE authorizeTable
+            SET status = $1
+            WHERE userId = $2 AND accountId = $3
+            RETURNING *;
         `;
-        const result = await pool.query(upsertQuery, [status, restBody.userId, restBody.accountId ]);
-        console.log("Result:", result);
-        const accountantResult = await pool.query("SELECT email FROM users WHERE id = $1", [restBody.accountId]);
-        const accountantEmail = accountantResult.rows[0]?.email;
+        const updateResult = await pool.query(updateQuery, [updatedStatus, userId, accountId]);
 
-        if (accountantEmail) {
-            const mailStatus = approveMail(accountantEmail);
-            console.log("Mail Status:", mailStatus);
+        const accountantResult = await pool.query(
+            'SELECT email FROM users WHERE id = $1',
+            [accountId]
+        );
+        const accountant = accountantResult.rows[0];
+
+        if (accountant) {
+            const mailStatus = await approveMail(accountant.email, user);
+            console.log('Mail Status:', mailStatus);
         }
 
-        res.status(200).json({
-            message: result.rowCount > 0
-                ? 'Record udpated .'
-                : 'No changes made.',
-            data: result.rows[0] || null
+        return res.status(200).json({
+            message: updateResult.rowCount > 0 ? 'Record updated successfully.' : 'No changes made.',
+            data: updateResult.rows[0] || null,
         });
 
     } catch (error) {
         console.error('Insert Authorize Error:', error);
-        res.status(500).json({ error: error.message });
+        return res.status(500).json({ error: error.message });
     }
 };
 
