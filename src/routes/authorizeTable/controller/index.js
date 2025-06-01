@@ -34,13 +34,13 @@ export const insertAuthorizeRecord = async (req, res) => {
             const insertResult = await pool.query(insertQuery, [userId, accountId, userStatus]);
 
             const accountantResult = await pool.query(
-                'SELECT email FROM users WHERE id = $1',
+                'SELECT email, fname FROM users WHERE id = $1',
                 [accountId]
             );
             const accountant = accountantResult.rows[0];
 
             if (accountant?.email) {
-                const mailStatus = await approveMail(accountant.email, user);
+                const mailStatus = await approveMail(accountant.email, accountant.fname, user);
                 if (mailStatus?.error) {
                     console.error('Mail sending failed:', mailStatus.error);
                     return res.status(500).json({ error: 'Failed to send approval email.' });

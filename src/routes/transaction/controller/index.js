@@ -85,31 +85,30 @@ export const createTransaction = async (req, res) => {
       allowedFields.includes(key)
     );
     const values = keys.map((key) => req.body[key]);
-
+    console.log("Transaction creation values:", values);
     const query = `INSERT INTO transaction (${keys.join(", ")})
       VALUES (${keys.map((_, i) => `$${i + 1}`).join(", ")})
       RETURNING *`;
 
     const result = await pool.query(query, values);
-    const body = result.rows[0];
-    if (result.rows.length > 0) {
-      const result = await pool.query(
-      "CALL update_transaction_with_log($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
-      [
-        body.transactionId,
-        query.amount,
-        query.category,
-        query.type,
-        query.accountId || query.userId,
-        query.accountNo,
-        query.vat_gst_amount,
-        query.vat_gst_percentage,
-        query.desc1,
-        query.desc2,
-        query.desc3
-      ]
-    );
-    }
+    // if (result.rows.length > 0) {
+    //   const logres = await pool.query(
+    //   "CALL update_transaction_with_log($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
+    //   [
+    //     result.rows[0].id,
+    //     query.amount,
+    //     query.category,
+    //     query.type,
+    //     query.accountId || query.userId,
+    //     query.accountNo,
+    //     query.vat_gst_amount,
+    //     query.vat_gst_percentage,
+    //     query.desc1,
+    //     query.desc2,
+    //     query.desc3
+    //   ]
+    // );
+    // }
     // Optional: save receipt
     if (req.file) {
       const { path: filepath, filename } = req.file;
@@ -290,14 +289,18 @@ export const deleteTransactionPermanently = async (req, res) => {
     return res.status(500).json({ error: error.message });
   }
 };
-
 export const getDeletedTransaction = async (req, res) => {
   try {
-    const { userId, accountId } = req.query;
+    const { userId, accountId, page = 1, limit = 10 } = req.query;
+
+    const pageNumber = parseInt(page);
+    const limitNumber = parseInt(limit);
+    const offset = (pageNumber - 1) * limitNumber;
 
     if (!userId) {
       return res.status(400).json({ error: "userId is required" });
     }
+
     const userResult = await pool.query(`SELECT * FROM users WHERE id = $1`, [
       userId,
     ]);
@@ -317,54 +320,97 @@ export const getDeletedTransaction = async (req, res) => {
       }
     }
 
-    const query = `SELECT * FROM transaction WHERE isdeleted = true AND userId = $1`;
-    const result = await pool.query(query, [userId]);
-    res.status(200).json(result.rows);
-    
+    const dataQuery = `
+      SELECT * FROM transaction 
+      WHERE isdeleted = true AND userId = $1
+      ORDER BY created_at DESC
+      LIMIT $2 OFFSET $3
+    `;
+    const countQuery = `
+      SELECT COUNT(*) FROM transaction 
+      WHERE isdeleted = true AND userId = $1
+    `;
+
+    const dataResult = await pool.query(dataQuery, [userId, limitNumber, offset]);
+    const countResult = await pool.query(countQuery, [userId]);
+    const totalItems = parseInt(countResult.rows[0].count);
+    const totalPages = Math.ceil(totalItems / limitNumber);
+
+    return res.status(200).json({
+      page: pageNumber,
+      limit: limitNumber,
+      totalItems,
+      totalPages,
+      transactions: dataResult.rows,
+    });
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
 };
 
+
 export const getAllTransactionOfUser = async (req, res) => {
-  try {
-    const { userId, accountId } = req.query;
+  
+  try{
+     const { userId, accountId, page = 1, limit = 10 } = req.query;
+
+    const pageNumber = parseInt(page);
+    const limitNumber = parseInt(limit);
+    const offset = (pageNumber - 1) * limitNumber;
+
     if (!userId && !accountId) {
       return res
         .status(400)
         .json({ error: "Either userId or accountId must be provided" });
     }
-    if (userId) {
-      const userResult = await pool.query(`SELECT * FROM users WHERE id = $1`, [
-        userId,
-      ]);
-      if (userResult.rows.length === 0) {
-        return res.status(404).json({ error: "User not found" });
-      }
-      if (accountId) {
-        const authorizationResult = await pool.query(
-          `SELECT * FROM authorizetable WHERE userId = $1 AND accountid = $2`,
-          [userId, accountId]
-        );
-        if (authorizationResult.rows.length === 0) {
-          return res.status(403).json({
-            error: `Accountant is not authorized to access this account`,
-          });
-        }
-        console.log(
-          `Accountant with accountId ${accountId} is authorized for user ${userId}`
-        );
-      }
-      const query =
-        "SELECT t.*, v.name as vendorName FROM transaction as t LEFT JOIN vendors as v ON t.vendorid = v.id WHERE t.isDeleted = false AND t.userid = $1";
-      const result = await pool.query(query, [userId]);
-      return res.status(200).json(result.rows);
-    } else {
-      return res
-        .status(400)
-        .json({ error: "Either userId or accountId must be provided" });
+
+    const userResult = await pool.query(`SELECT * FROM users WHERE id = $1`, [
+      userId,
+    ]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: "User not found" });
     }
-  } catch (error) {
+
+    if (accountId) {
+      const authorizationResult = await pool.query(
+        `SELECT * FROM authorizetable WHERE userId = $1 AND accountid = $2`,
+        [userId, accountId]
+      );
+      if (authorizationResult.rows.length === 0) {
+        return res.status(403).json({
+          error: `Accountant is not authorized to access this account`,
+        });
+      }
+    }
+
+    const dataQuery = `
+      SELECT t.*, v.name as vendorName 
+      FROM transaction as t 
+      LEFT JOIN vendors as v ON t.vendorid = v.id 
+      WHERE t.isdeleted = false AND t.userid = $1
+      ORDER BY t.created_at DESC
+      LIMIT $2 OFFSET $3
+    `;
+    const countQuery = `
+      SELECT COUNT(*) 
+      FROM transaction 
+      WHERE isdeleted = false AND userid = $1
+    `;
+
+    const dataResult = await pool.query(dataQuery, [userId, limitNumber, offset]);
+    const countResult = await pool.query(countQuery, [userId]);
+    const totalItems = parseInt(countResult.rows[0].count);
+    const totalPages = Math.ceil(totalItems / limitNumber);
+
+    return res.status(200).json({
+      page: pageNumber,
+      limit: limitNumber,
+      totalItems,
+      totalPages,
+      transactions: dataResult.rows,
+    });
+  }
+  catch (error) {
     console.error("Error fetching transactions:", error);
     return res.status(500).json({ error: error.message });
   }
@@ -472,7 +518,7 @@ export const updateTransaction = async (req, res) => {
 
 export const getTransactionLogByTransactionId = async (req, res) => {
   try {
-    const { userId, accountId, transactionId } = req.query;
+    const { userId, accountId, transactionId, page = 1, limit = 10  } = req.query;
     if (!userId && !accountId) {
       return res
         .status(400)
@@ -496,29 +542,73 @@ export const getTransactionLogByTransactionId = async (req, res) => {
           });
         }
       }
-      const query =
-        "SELECT t.*,u.fname, u.lname FROM transactionlog as t LEFT JOIN users as u on t.updatedbyuserid = u.id  where t.transactionid = $1";
-      const result = await pool.query(query, [transactionId]);
-      const newResult = result.rows.map((log) => {
-        return {
-          changes: Object.keys(log).reduce((acc, logDetail) => {
-            if (log[logDetail] && changesMap.includes(logDetail)) {
-              acc.push({
-                field_changed: logDetail,
-                new_value: log[logDetail],
-              });
+      
+    const offset = (page - 1) * limit;
+
+      // Total count
+      const countResult = await pool.query(
+        "SELECT COUNT(*) FROM transactionlog WHERE transactionid = $1",
+        [transactionId]
+      );
+      const totalItems = parseInt(countResult.rows[0].count);
+      const totalPages = Math.ceil(totalItems / limit);
+
+      // Paginated query
+      const query = `
+        SELECT t.*, u.fname, u.lname
+        FROM transactionlog AS t
+        LEFT JOIN users AS u ON t.updatedbyuserid = u.id
+        WHERE t.transactionid = $1
+        ORDER BY t.created_at DESC
+        LIMIT $2 OFFSET $3
+      `;
+      const result = await pool.query(query, [transactionId, limit, offset]);
+
+      const logs = await Promise.all(
+      result.rows.map(async (log) => {
+       const changes = await Promise.all(
+       Object.keys(log).reduce((acc, key) => {
+        if (log[key] && changesMap.includes(key)) {
+          acc.push((async () => {
+            let value = log[key];
+
+           
+            if (key === "category") {
+              const categoryRes = await pool.query(
+                "SELECT name FROM category WHERE id = $1",
+                [value]
+              );
+              value = categoryRes.rows[0]?.name || value;
             }
-            return acc;
-          }, []),
-          edited_by: `${log.fname} ${log.lname}`,
-          timestamp: log.created_at,
-        };
+
+            return {
+              field_changed: key,
+              new_value: value,
+            };
+          })());
+        }
+        return acc;
+      }, [])
+    );
+
+    return {
+      changes,
+      edited_by: `${log.fname} ${log.lname}`,
+      timestamp: log.created_at,
+    };
+  })
+);
+
+
+      return res.status(200).json({
+        page: Number(page),
+        limit: Number(limit),
+        totalItems,
+        totalPages,
+        logs,
       });
-      return res.status(200).json(newResult);
     } else {
-      return res
-        .status(400)
-        .json({ error: "Either userId or accountId must be provided" });
+      return res.status(400).json({ error: "Either userId or accountId must be provided" });
     }
   } catch (error) {
     console.error("Error fetching transactions:", error);
@@ -666,5 +756,3 @@ export const importTransactionCSV = async (req, res, next) => {
     return res.status(500).json({ error: `Unexpected error: ${err.message}` });
   }
 };
-
-

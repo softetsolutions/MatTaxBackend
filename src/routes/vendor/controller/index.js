@@ -12,7 +12,13 @@ export const createVendor = async (req, res, next) => {
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
-
+    const isVendor = await pool.query(
+      "SELECT * FROM vendors WHERE user_id = $1 AND name = $2",
+      [userId, name]
+    );
+    if (isVendor.rows.length > 0) {
+      return res.status(200).json({ error: "Vendor already exists" });
+    }
     const query = `
         INSERT INTO vendors (name, address, email1, email2, phone1, phone2, user_id)
         VALUES ($1, $2, $3, $4, $5, $6, $7)

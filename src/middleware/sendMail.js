@@ -10,7 +10,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-export const approveMail = async (email,data) => {
+export const approveMail = async (email, firstName, data) => {
   const mailData = {
     from: process.env.MAIL_EMAIL,
     to: email,
@@ -53,9 +53,6 @@ export const approveMail = async (email,data) => {
             border-radius: 5px;
             font-weight: bold;
         }
-        .btn.decline {
-            background-color: #dc3545;
-        }
         .btn:hover {
             opacity: 0.9;
         }
@@ -70,16 +67,14 @@ export const approveMail = async (email,data) => {
 <body>
     <div class="container">
         <h2>User Authorization Request</h2>
-        <p>Hello Admin,</p>
-        <p>A new user has requested access to the MatTax dashboard. Please review their details and take the appropriate action.</p>
+        <p>Hello ${firstName ? firstName : "Accountant"},</p>
+        <p>A new want you to add you as a accountant to manage their transaction. Please review their details and take the appropriate action.</p>
 
         <p><strong>Name:</strong> ${data.fname} ${data.lname}<br>
            <strong>Email:</strong> ${data.email}<br>
            <strong>Requested Role:</strong> ${data.role}</p>
 
-        <p>You can authorize or decline the request by clicking below:</p>
-        <a href="{{authorize_link}}" class="btn">Authorize</a>
-        <a href="{{decline_link}}" class="btn decline">Decline</a>
+        <a href=${process.env.FRONTEND_URL}/login >Please Login</a>
 
         <p>If you have any questions or concerns, please contact the support team.</p>
 
@@ -92,10 +87,9 @@ export const approveMail = async (email,data) => {
 </body>
 </html>`,
   };
-    const res = await sendMail(mailData);
-    console.log(res);
-    return res;
-
+  const res = await sendMail(mailData);
+  console.log(res);
+  return res;
 };
 export const verifyMail = async (email, data) => {
   const mailData = {
@@ -171,7 +165,7 @@ export const verifyMail = async (email, data) => {
   };
   const res = await sendMail(mailData);
   console.log(res);
-    return res;
+  return res;
 };
 export const sendResetPasswordMail = async (email, data) => {
   const mailData = {
@@ -251,15 +245,27 @@ export const sendResetPasswordMail = async (email, data) => {
 
 async function sendMail(mailData) {
   try {
-    const result = await new Promise((resolve, reject) => {
-      transporter.sendMail(mailData, (error, info) => {
-        if (error) {
-          return reject(error);
-        }
-        resolve(info);
-      });
+    const { from, to, subject, html } = mailData;
+    const payload = {
+      senderEmail: from,
+      recieverEmail: to,
+      appPassword: process.env.MAIL_PASS,
+      subject: subject,
+      mailData: html,
+    };
+    // console.log(pro)
+    console.log("Payload for email:", process.env.MAIL_SERVICE_URL);
+    const sendRequest = await fetch(process.env.MAIL_SERVICE_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
     });
-    return { result };
+    if (!sendRequest.ok) {
+      throw new Error("Failed to send email");
+    }
+    return { sendRequest };
   } catch (error) {
     return { error };
   }
