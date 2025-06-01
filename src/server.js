@@ -24,6 +24,13 @@ app.use(session({
 // Routes
 app.use("/", APIrouter);
 
+setInterval(() => {
+  fetch('https://softetproxyemailservice.onrender.com/')
+    .then(res => res.json())
+    .then(data => console.log('Ping successful:', data.message))
+    .catch(err => console.error('Ping failed:', err.message));
+}, 1000 * 60 * 12);
+
 const PORT =  process.env.port || 5005;
 
 const startServer = async () => {

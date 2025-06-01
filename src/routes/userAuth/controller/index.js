@@ -33,7 +33,19 @@ export const createUser = async (req, res) => {
     const columns = Object.keys(inputData);
     const values = Object.values(inputData);
     const placeholders = columns.map((_, i) => `$${i + 1}`);
+    const existingUserQuery = `SELECT * FROM users WHERE email = $1`;
+    const existingUserResult = await pool.query(existingUserQuery, [email]);
+    if (existingUserResult.rowCount > 0 && existingUserResult.rows[0].verified === false) {
+      const token = btoa(`${existingUserResult.rows[0].id}`);
+      const verifyLink = `${frontEndUrl}/verifyEmail/${token}`;
+      const mailStatus = await verifyMail(email, verifyLink);
+      if (mailStatus.error) {
+          console.error("Mail sending failed:", mailStatus.error);
+          return res.status(500).json({ error: 'Failed to send approval email.' });
+      }
 
+     return res.status(200).json({ message: "User created", user: existingUserResult.rows[0] });
+    }
     const query = `
       INSERT INTO users (${columns.join(", ")})
       VALUES (${placeholders.join(", ")})
@@ -42,7 +54,11 @@ export const createUser = async (req, res) => {
     const result = await pool.query(query, values);
     const token = btoa(`${result.rows[0].id}`);
     const verifyLink = `${frontEndUrl}/verifyEmail/${token}`;
-    await verifyMail(email, verifyLink);
+    const mailStatus = await verifyMail(email, verifyLink);
+    if (mailStatus.error) {
+        console.error("Mail sending failed:", mailStatus.error);
+        return res.status(500).json({ error: 'Failed to send approval email.' });
+    }
 
     res.status(200).json({ message: "User created", user: result.rows[0] });
   } catch (error) {
@@ -94,7 +110,11 @@ export const forgotPassword = async (req, res) => {
     const token = jsonwebtoken.sign({ id: user.id }, process.env.JWT_KEY, { expiresIn: '5m' });
 
     const resetUrl = `${frontEndUrl}/resetPassword/${token}`;
-    await sendResetPasswordMail(email, resetUrl); // Ensure sendMail accepts subject & content as needed
+    const mailStatus = await sendResetPasswordMail(email, resetUrl); // Ensure sendMail accepts subject & content as needed
+    if (mailStatus.error) {
+        console.error("Mail sending failed:", mailStatus.error);
+        return res.status(500).json({ error: 'Failed to send approval email.' });
+    }
     res.status(200).json({ message: "Reset link sent successfully" });
   } catch (error) {
     res.status(500).json({ error: error.message });

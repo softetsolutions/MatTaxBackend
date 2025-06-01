@@ -30,7 +30,7 @@ export const createCategory = async (req, res) => {
       const { rows } = await pool.query(query, values);
       res.status(200).json(rows[0]);
     } else {
-      res.status(200).json({ message: "category already exist" });
+      res.status(200).json({  message: "category already exist" });
     }
   } catch (error) {
     return res.status(500).json({ error: error.message });
