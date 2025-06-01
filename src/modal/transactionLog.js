@@ -8,7 +8,7 @@ const transactionLogTable = async () => {
         isDeleted BOOLEAN ,
         amount VARCHAR(100),
         category INT,
-
+        receipt INT,
         accountNo INT,
         vat_gst_amount VARCHAR(100),
         vat_gst_percentage VARCHAR(100),
@@ -88,13 +88,14 @@ const transactionAndTransactionLogProcedureQuery =  `CREATE OR REPLACE PROCEDURE
     p_new_amount VARCHAR(100),
     p_new_category VARCHAR(100),
     p_new_type VARCHAR(100),
-    p_new_accountNo INT,
+    p_new_accountNo VARCHAR(500),
     p_new_vat_gst_amount VARCHAR(100),
     p_new_vat_gst_percentage VARCHAR(100),
     p_new_desc1 VARCHAR(100),
     p_new_desc2 VARCHAR(100),
     p_new_desc3 VARCHAR(500),
-    p_updatedByUserId INT
+    p_updatedByUserId INT,
+    p_new_receiptId INT
 )
 LANGUAGE plpgsql
 AS $$
@@ -119,7 +120,8 @@ BEGIN
        (p_new_vat_gst_percentage IS DISTINCT FROM v_existing_transaction.vat_gst_percentage) OR
        (p_new_desc1 IS DISTINCT FROM v_existing_transaction.desc1) OR
        (p_new_desc2 IS DISTINCT FROM v_existing_transaction.desc2) OR
-       (p_new_desc3 IS DISTINCT FROM v_existing_transaction.desc3)
+       (p_new_desc3 IS DISTINCT FROM v_existing_transaction.desc3) OR
+       (p_new_receiptId IS DISTINCT FROM v_existing_transaction.receipt)
     THEN
         v_change_detected := TRUE;
     END IF;
@@ -136,6 +138,7 @@ BEGIN
             desc1,
             desc2,
             desc3,
+            receipt,
             updatedByuserId,
             transactionId,
             created_at
@@ -149,6 +152,7 @@ BEGIN
             CASE WHEN p_new_desc1 IS DISTINCT FROM v_existing_transaction.desc1 THEN p_new_desc1 ELSE NULL END,
             CASE WHEN p_new_desc2 IS DISTINCT FROM v_existing_transaction.desc2 THEN p_new_desc2 ELSE NULL END,
             CASE WHEN p_new_desc3 IS DISTINCT FROM v_existing_transaction.desc3 THEN p_new_desc3 ELSE NULL END,
+            p_new_receiptId,
             p_updatedByUserId,
             p_transaction_id,
             NOW()
@@ -165,7 +169,7 @@ BEGIN
             desc1 = COALESCE(p_new_desc1, desc1),
             desc2 = COALESCE(p_new_desc2, desc2),
             desc3 = COALESCE(p_new_desc3, desc3),
-            updatedByuserId = p_updatedByUserId
+            receipt = COALESCE(p_new_receiptId, receipt)
         WHERE id = p_transaction_id;
     END IF;
 END;

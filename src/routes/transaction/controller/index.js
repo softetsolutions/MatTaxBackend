@@ -21,6 +21,7 @@ export const createTransaction = async (req, res) => {
       "isDeleted",
       "userId",
       "accountNo",
+      "receipt",
       "vat_gst_amount",
       "vat_gst_percentage",
     ];
@@ -76,16 +77,24 @@ export const createTransaction = async (req, res) => {
         vendorId = vendorResult.rows[0].id;
       }
     }
-
+    let receiptId = null;
+    if (req.file) {
+      const { path: filepath, filename } = req.file;
+      const receiptQuery = `INSERT INTO receipt (filepath, filename) VALUES ($1, $2) RETURNING *`;
+      const receiptRes = await pool.query(receiptQuery, [
+        filepath,
+        filename,
+      ]);
+      receiptId = receiptRes.rows[0]?.id;
+    }
     // Apply vendorId to body and recalculate keys/values
     req.body.vendorId = vendorId;
     req.body.userId = userId;
-
+    req.body.receipt = receiptId;
     const keys = Object.keys(req.body).filter((key) =>
       allowedFields.includes(key)
     );
     const values = keys.map((key) => req.body[key]);
-    console.log("Transaction creation values:", values);
     const query = `INSERT INTO transaction (${keys.join(", ")})
       VALUES (${keys.map((_, i) => `$${i + 1}`).join(", ")})
       RETURNING *`;
@@ -110,11 +119,6 @@ export const createTransaction = async (req, res) => {
     // );
     // }
     // Optional: save receipt
-    if (req.file) {
-      const { path: filepath, filename } = req.file;
-      const receiptQuery = `INSERT INTO receipt (filepath, filename, transactionId) VALUES ($1, $2, $3)`;
-      await pool.query(receiptQuery, [filepath, filename, result.rows[0].id]);
-    }
 
     res.status(200).json(result.rows[0]);
   } catch (error) {
@@ -122,7 +126,6 @@ export const createTransaction = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
-
 
 export const deleteTransaction = async (req, res) => {
   try {
@@ -168,7 +171,6 @@ export const deleteTransaction = async (req, res) => {
     const query =
       "UPDATE transaction SET isDeleted = true WHERE id = $1 RETURNING *";
     const result = await pool.query(query, [transactionId]);
-    console.log(result);
     if (result.rowCount > 0) {
       return res
         .status(200)
@@ -331,7 +333,11 @@ export const getDeletedTransaction = async (req, res) => {
       WHERE isdeleted = true AND userId = $1
     `;
 
-    const dataResult = await pool.query(dataQuery, [userId, limitNumber, offset]);
+    const dataResult = await pool.query(dataQuery, [
+      userId,
+      limitNumber,
+      offset,
+    ]);
     const countResult = await pool.query(countQuery, [userId]);
     const totalItems = parseInt(countResult.rows[0].count);
     const totalPages = Math.ceil(totalItems / limitNumber);
@@ -348,11 +354,9 @@ export const getDeletedTransaction = async (req, res) => {
   }
 };
 
-
 export const getAllTransactionOfUser = async (req, res) => {
-  
-  try{
-     const { userId, accountId, page = 1, limit = 10 } = req.query;
+  try {
+    const { userId, accountId, page = 1, limit = 10 } = req.query;
 
     const pageNumber = parseInt(page);
     const limitNumber = parseInt(limit);
@@ -397,7 +401,11 @@ export const getAllTransactionOfUser = async (req, res) => {
       WHERE isdeleted = false AND userid = $1
     `;
 
-    const dataResult = await pool.query(dataQuery, [userId, limitNumber, offset]);
+    const dataResult = await pool.query(dataQuery, [
+      userId,
+      limitNumber,
+      offset,
+    ]);
     const countResult = await pool.query(countQuery, [userId]);
     const totalItems = parseInt(countResult.rows[0].count);
     const totalPages = Math.ceil(totalItems / limitNumber);
@@ -409,8 +417,7 @@ export const getAllTransactionOfUser = async (req, res) => {
       totalPages,
       transactions: dataResult.rows,
     });
-  }
-  catch (error) {
+  } catch (error) {
     console.error("Error fetching transactions:", error);
     return res.status(500).json({ error: error.message });
   }
@@ -430,19 +437,12 @@ export const getTransactionByTransactionId = async (req, res) => {
 
 export const updateTransaction = async (req, res) => {
   try {
-    const { userId, accountId } = req.query;
+    const { accountId } = req.query;
     const { transactionId } = req.body;
-
-    if (!userId) {
-      return res.status(400).json({ error: "userId is required" });
+    if (!req.user) {
+      return res.status(400).json({ error: "unauthorize access" });
     }
-
-    const userResult = await pool.query("SELECT * FROM users WHERE id = $1", [
-      userId,
-    ]);
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({ error: "User not found" });
-    }
+    const userId = req.user.id;
 
     const transactionResult = await pool.query(
       "SELECT * FROM transaction WHERE id = $1",
@@ -471,21 +471,32 @@ export const updateTransaction = async (req, res) => {
         });
       }
     }
-
+    let receiptId = null;
+    if (req.file) {
+      const { path: filepath, filename } = req.file;
+      const receiptQuery = `INSERT INTO receipt (filepath, filename) VALUES ($1, $2) RETURNING *`;
+      const receiptRes = await pool.query(receiptQuery, [
+        filepath,
+        filename,
+      ]);
+      receiptId = receiptRes.rows[0]?.id;
+    }
+    
     const result = await pool.query(
-      "CALL update_transaction_with_log($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
+      "CALL update_transaction_with_log($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
       [
         req.body.transactionId,
         req.body.newAmount,
         req.body.newCategory,
         req.body.newType,
-        req.body.updatedByUserId,
         req.body.accountNo,
         req.body.vat_gst_amount,
         req.body.vat_gst_percentage,
         req.body.desc1,
         req.body.desc2,
-        req.body.desc3
+        req.body.desc3,
+        userId,
+        receiptId
       ]
     );
 
@@ -518,7 +529,13 @@ export const updateTransaction = async (req, res) => {
 
 export const getTransactionLogByTransactionId = async (req, res) => {
   try {
-    const { userId, accountId, transactionId, page = 1, limit = 10  } = req.query;
+    const {
+      userId,
+      accountId,
+      transactionId,
+      page = 1,
+      limit = 10,
+    } = req.query;
     if (!userId && !accountId) {
       return res
         .status(400)
@@ -542,8 +559,8 @@ export const getTransactionLogByTransactionId = async (req, res) => {
           });
         }
       }
-      
-    const offset = (page - 1) * limit;
+
+      const offset = (page - 1) * limit;
 
       // Total count
       const countResult = await pool.query(
@@ -565,40 +582,40 @@ export const getTransactionLogByTransactionId = async (req, res) => {
       const result = await pool.query(query, [transactionId, limit, offset]);
 
       const logs = await Promise.all(
-      result.rows.map(async (log) => {
-       const changes = await Promise.all(
-       Object.keys(log).reduce((acc, key) => {
-        if (log[key] && changesMap.includes(key)) {
-          acc.push((async () => {
-            let value = log[key];
+        result.rows.map(async (log) => {
+          const changes = await Promise.all(
+            Object.keys(log).reduce((acc, key) => {
+              if (log[key] && changesMap.includes(key)) {
+                acc.push(
+                  (async () => {
+                    let value = log[key];
 
-           
-            if (key === "category") {
-              const categoryRes = await pool.query(
-                "SELECT name FROM category WHERE id = $1",
-                [value]
-              );
-              value = categoryRes.rows[0]?.name || value;
-            }
+                    if (key === "category") {
+                      const categoryRes = await pool.query(
+                        "SELECT name FROM category WHERE id = $1",
+                        [value]
+                      );
+                      value = categoryRes.rows[0]?.name || value;
+                    }
 
-            return {
-              field_changed: key,
-              new_value: value,
-            };
-          })());
-        }
-        return acc;
-      }, [])
-    );
+                    return {
+                      field_changed: key,
+                      new_value: value,
+                    };
+                  })()
+                );
+              }
+              return acc;
+            }, [])
+          );
 
-    return {
-      changes,
-      edited_by: `${log.fname} ${log.lname}`,
-      timestamp: log.created_at,
-    };
-  })
-);
-
+          return {
+            changes,
+            edited_by: `${log.fname} ${log.lname}`,
+            timestamp: log.created_at,
+          };
+        })
+      );
 
       return res.status(200).json({
         page: Number(page),
@@ -608,7 +625,9 @@ export const getTransactionLogByTransactionId = async (req, res) => {
         logs,
       });
     } else {
-      return res.status(400).json({ error: "Either userId or accountId must be provided" });
+      return res
+        .status(400)
+        .json({ error: "Either userId or accountId must be provided" });
     }
   } catch (error) {
     console.error("Error fetching transactions:", error);

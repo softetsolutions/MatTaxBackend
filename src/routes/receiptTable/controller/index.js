@@ -11,33 +11,22 @@ export const getReceipt = async (req, res) => {
     const userId = req.user.id;
 
     if (!id) {
-      return res.status(400).json({ error: "Transaction ID is required" });
+      return res.status(400).json({ error: "Receipt ID is required" });
     }
-
-    const authUser = await pool.query(
-      "SELECT * FROM transaction WHERE id = $1",
-      [id]
-    );
-
-    if (authUser.rows.length === 0) {
-      return res.status(404).json({ error: "Transaction not found" });
-    }
-
-    const authUserId = authUser.rows[0].userid;
 
     const validateUser = await pool.query(
       "SELECT * FROM authorizeTable WHERE userId = $1 OR accountId = $1",
       [userId]
     );
 
-    if (validateUser.rows.length === 0 && userId !== authUserId) {
+    if (validateUser.rows.length === 0) {
       return res
         .status(403)
         .json({ error: "Unauthorized access to the receipt" });
     }
 
     const result = await pool.query(
-      "SELECT * FROM receipt WHERE transactionId = $1",
+      "SELECT * FROM receipt WHERE id = $1",
       [id]
     );
 
