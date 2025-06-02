@@ -483,7 +483,7 @@ export const updateTransaction = async (req, res) => {
     }
     
     const result = await pool.query(
-      "CALL update_transaction_with_log($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
+      "CALL update_transaction_with_log($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)",
       [
         req.body.transactionId,
         req.body.newAmount,
@@ -496,7 +496,8 @@ export const updateTransaction = async (req, res) => {
         req.body.desc2,
         req.body.desc3,
         userId,
-        receiptId
+        receiptId,
+        req.body.vendorId, 
       ]
     );
 

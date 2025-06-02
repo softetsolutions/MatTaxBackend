@@ -95,7 +95,8 @@ const transactionAndTransactionLogProcedureQuery =  `CREATE OR REPLACE PROCEDURE
     p_new_desc2 VARCHAR(100),
     p_new_desc3 VARCHAR(500),
     p_updatedByUserId INT,
-    p_new_receiptId INT
+    p_new_receiptId INT,
+    p_vendorId INT
 )
 LANGUAGE plpgsql
 AS $$
@@ -121,7 +122,8 @@ BEGIN
        (p_new_desc1 IS DISTINCT FROM v_existing_transaction.desc1) OR
        (p_new_desc2 IS DISTINCT FROM v_existing_transaction.desc2) OR
        (p_new_desc3 IS DISTINCT FROM v_existing_transaction.desc3) OR
-       (p_new_receiptId IS DISTINCT FROM v_existing_transaction.receipt)
+       (p_new_receiptId IS DISTINCT FROM v_existing_transaction.receipt) OR
+       (p_vendorId IS DISTINCT FROM v_existing_transaction.vendorId)
     THEN
         v_change_detected := TRUE;
     END IF;
@@ -129,6 +131,7 @@ BEGIN
     -- Insert log only if something changed
     IF v_change_detected THEN
         INSERT INTO transactionLog (
+            vendorId,
             amount,
             category,
             type,
@@ -143,6 +146,7 @@ BEGIN
             transactionId,
             created_at
         ) VALUES (
+            CASE WHEN p_vendorId IS DISTINCT FROM v_existing_transaction.vendorId THEN p_vendorId ELSE NULL END,
             CASE WHEN p_new_amount IS DISTINCT FROM v_existing_transaction.amount THEN p_new_amount ELSE NULL END,
             CASE WHEN p_new_category IS DISTINCT FROM v_existing_transaction.category THEN p_new_category ELSE NULL END,
             CASE WHEN p_new_type IS DISTINCT FROM v_existing_transaction.type THEN p_new_type ELSE NULL END,
@@ -152,7 +156,7 @@ BEGIN
             CASE WHEN p_new_desc1 IS DISTINCT FROM v_existing_transaction.desc1 THEN p_new_desc1 ELSE NULL END,
             CASE WHEN p_new_desc2 IS DISTINCT FROM v_existing_transaction.desc2 THEN p_new_desc2 ELSE NULL END,
             CASE WHEN p_new_desc3 IS DISTINCT FROM v_existing_transaction.desc3 THEN p_new_desc3 ELSE NULL END,
-            p_new_receiptId,
+            CASE WHEN p_new_receiptId IS DISTINCT FROM v_existing_transaction.receipt THEN p_new_receiptId ELSE NULL END,
             p_updatedByUserId,
             p_transaction_id,
             NOW()
@@ -169,7 +173,8 @@ BEGIN
             desc1 = COALESCE(p_new_desc1, desc1),
             desc2 = COALESCE(p_new_desc2, desc2),
             desc3 = COALESCE(p_new_desc3, desc3),
-            receipt = COALESCE(p_new_receiptId, receipt)
+            receipt = COALESCE(p_new_receiptId, receipt),
+            vendorId = COALESCE(p_vendorId, vendorId)
         WHERE id = p_transaction_id;
     END IF;
 END;
