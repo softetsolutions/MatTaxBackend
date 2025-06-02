@@ -35,7 +35,7 @@ export const createUser = async (req, res) => {
     const placeholders = columns.map((_, i) => `$${i + 1}`);
     const existingUserQuery = `SELECT * FROM users WHERE email = $1`;
     const existingUserResult = await pool.query(existingUserQuery, [email]);
-    if (existingUserResult.rowCount > 0 && existingUserResult.rows[0].verified === false) {
+    if (existingUserResult.rows.length > 0 && existingUserResult.rows[0].verified === false) {
       const token = btoa(`${existingUserResult.rows[0].id}`);
       const verifyLink = `${frontEndUrl}/verifyEmail/${token}`;
       const mailStatus = await verifyMail(email, verifyLink);
@@ -44,8 +44,11 @@ export const createUser = async (req, res) => {
           return res.status(500).json({ error: 'Failed to send approval email.' });
       }
 
-     return res.status(200).json({ message: "User created", user: existingUserResult.rows[0] });
+     return res.status(200).json({ message: "This user already exists. We've sent the verification email again to your registered email address.", user: existingUserResult.rows[0] });
+    }else if(existingUserResult?.rows[0]?.verified){
+      return res.status(200).json({message: "Already verified user. Pls login"});
     }
+ 
     const query = `
       INSERT INTO users (${columns.join(", ")})
       VALUES (${placeholders.join(", ")})
@@ -57,10 +60,10 @@ export const createUser = async (req, res) => {
     const mailStatus = await verifyMail(email, verifyLink);
     if (mailStatus.error) {
         console.error("Mail sending failed:", mailStatus.error);
-        return res.status(500).json({ error: 'Failed to send approval email.' });
+        return res.status(500).json({ error: 'Failed to send approval email. pls try again later' });
     }
 
-    res.status(200).json({ message: "User created", user: result.rows[0] });
+    res.status(200).json({ message: "Your account has been created successfully! We've sent a verification email to your registered email address.", user: result.rows[0] });
   } catch (error) {
     console.error("Error creating user:", error);
     res.status(500).json({ error: "Internal Server Error" });
