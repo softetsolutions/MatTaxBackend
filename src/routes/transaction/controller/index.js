@@ -2,13 +2,7 @@ import { pool } from "../../../config/database.js";
 import { parse } from "csv-parse";
 import fs from "fs";
 
-const changesMap = ["amount", "category", "isdeleted", "type"];
-export const createTransaction = async (req, res) => {
-  try {
-    const { userId, accountId } = req.query;
-    let { vendorId } = req.body;
-
-    const allowedFields = [
+const allowedFields = [
       "amount",
       "type",
       "vendorId",
@@ -25,6 +19,10 @@ export const createTransaction = async (req, res) => {
       "vat_gst_amount",
       "vat_gst_percentage",
     ];
+export const createTransaction = async (req, res) => {
+  try {
+    const { userId, accountId } = req.query;
+    let { vendorId } = req.body;
 
     if (!userId) {
       return res.status(400).json({ error: "userId is required" });
@@ -573,50 +571,40 @@ export const getTransactionLogByTransactionId = async (req, res) => {
 
       // Paginated query
       const query = `
-        SELECT t.*, u.fname, u.lname
-        FROM transactionlog AS t
-        LEFT JOIN users AS u ON t.updatedbyuserid = u.id
-        WHERE t.transactionid = $1
+        SELECT
+          t.id, t.transactionId, t.amount, t.type, t.created_at,t.updatedbyuserid, t.vat_gst_amount, t.vat_gst_percentage,t.isdeleted, t.desc1, t.desc2, t.desc3,
+          u.fname AS fname, u.lname AS  lname,
+          r.fileName AS receipt,
+          v.name AS vendorid,
+          a."accountNo" AS accountno,
+          c.name AS category
+      FROM transactionlog AS t
+      LEFT JOIN users AS u ON t.updatedbyuserid = u.id
+      LEFT JOIN receipt AS r ON t.receipt = r.id
+      LEFT JOIN vendors AS v ON t.vendorId = v.id
+      LEFT JOIN accountno AS a ON t.accountNo::INT = a.id
+      LEFT JOIN category AS c ON t.category::INT = c.id
+      WHERE t.transactionId = $1
         ORDER BY t.created_at DESC
         LIMIT $2 OFFSET $3
       `;
       const result = await pool.query(query, [transactionId, limit, offset]);
 
-      const logs = await Promise.all(
-        result.rows.map(async (log) => {
-          const changes = await Promise.all(
-            Object.keys(log).reduce((acc, key) => {
-              if (log[key] && changesMap.includes(key)) {
-                acc.push(
-                  (async () => {
-                    let value = log[key];
-
-                    if (key === "category") {
-                      const categoryRes = await pool.query(
-                        "SELECT name FROM category WHERE id = $1",
-                        [value]
-                      );
-                      value = categoryRes.rows[0]?.name || value;
-                    }
-
-                    return {
-                      field_changed: key,
-                      new_value: value,
-                    };
-                  })()
-                );
-              }
-              return acc;
-            }, [])
-          );
-
-          return {
-            changes,
-            edited_by: `${log.fname} ${log.lname}`,
-            timestamp: log.created_at,
-          };
-        })
-      );
+      const logs = result.rows.map((log) => {
+        return {
+          changes: Object.keys(log).reduce((acc, logDetail) => {
+            if (log[logDetail] && allowedFields.includes(logDetail)) {
+              acc.push({
+                field_changed: logDetail,
+                new_value: log[logDetail],
+              });
+            }
+            return acc;
+          }, []),
+          edited_by: `${log.fname} ${log.lname}`,
+          timestamp: log.created_at,
+        };
+      });
 
       return res.status(200).json({
         page: Number(page),
