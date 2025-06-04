@@ -435,12 +435,12 @@ export const getTransactionByTransactionId = async (req, res) => {
 
 export const updateTransaction = async (req, res) => {
   try {
-    const { accountId } = req.query;
+    const { accountId, userId } = req.query;
     const { transactionId } = req.body;
-    if (!req.user) {
+    if (req.user.id != accountId && req.user.id != userId) {
       return res.status(400).json({ error: "unauthorize access" });
     }
-    const userId = req.user.id;
+    // const userId = req.user.id; //accountant
 
     const transactionResult = await pool.query(
       "SELECT * FROM transaction WHERE id = $1",
@@ -511,20 +511,7 @@ export const updateTransaction = async (req, res) => {
   }
 };
 
-// export const createTransactionLog = async (req, res) => {
-//     try {
-//         const body = req.body;
-//         const query = `INSERT INTO transactionLog (${Object.keys(body).join(', ')}) VALUES (${Object.keys(body).map((_, i) => `$${i + 1}`).join(', ')}) RETURNING *;`;
-//         const result = await pool.query(query, Object.values(body))
-//         const transaction = result.rows[0];
-//         if (!transaction) {
-//             return res.status(404).json({ message: "Transaction not found" });
-//         }
-//         res.status(200).json(transaction);
-//     } catch (error) {
-//         res.status(500).json({ error: error.message });
-//     }
-// }
+
 
 export const getTransactionLogByTransactionId = async (req, res) => {
   try {

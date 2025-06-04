@@ -40,9 +40,22 @@ export const createAccountNo = async (req, res) => {
 };
 
 export const getAccountNo = async (req, res) => {
-  const userId = req.user.id;
+  const userId = req.query.userId;
+  const currentUser = req.user?.id;
 
   try {
+     if (userId != currentUser) {
+      const authorizationResult = await pool.query(
+        "SELECT * FROM authorizetable WHERE userId = $1 AND accountId = $2",
+        [userId, currentUser]
+      );
+      if (authorizationResult.rows.length === 0) {
+        return res.status(403).json({
+          error:
+            "Accountant is not authorized to create this transaction for the user",
+        });
+      }
+    }
     const { rows } = await pool.query(
       "SELECT * FROM accountNo WHERE user_id = $1",
       [userId]
