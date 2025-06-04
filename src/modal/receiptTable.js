@@ -5,10 +5,8 @@ const receiptTable = async () => {
             CREATE TABLE IF NOT EXISTS receipt (
             id SERIAL PRIMARY KEY,
             filepath VARCHAR(255) NOT NULL,
-            filename VARCHAR(255) NOT NULL,
-            transactionId INT NOT NULL,
-            FOREIGN KEY (transactionId) REFERENCES transaction(id)
-        );
+            filename VARCHAR(255) NOT NULL
+            );
     `;
 
     try {

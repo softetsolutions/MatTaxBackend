@@ -8,14 +8,16 @@ import accountNoTable from "./accountNo.js";
 import categoryTable from "./category.js";
 class entityManager{
     constructor(){
-        userTable();
-        vendorTable();
-        transactionTable();
-        transactionLogTable();
-        authorizeTable();
-        receiptTable();
-        accountNoTable();
-        categoryTable();
+        (async function initialize(){
+            await userTable();
+            await vendorTable();
+            await categoryTable();
+            await transactionTable();
+            await receiptTable();
+            await transactionLogTable();
+            await authorizeTable();
+            await accountNoTable();
+        })();
     }
 }
 

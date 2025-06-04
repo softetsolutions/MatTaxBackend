@@ -434,7 +434,7 @@ export const getTransactionByTransactionId = async (req, res) => {
 };
 
 export const updateTransaction = async (req, res) => {
-  try {
+  // try {
     const { accountId, userId } = req.query;
     const { transactionId } = req.body;
     if (req.user.id != accountId && req.user.id != userId) {
@@ -506,9 +506,9 @@ export const updateTransaction = async (req, res) => {
     }
 
     res.status(200).json({ message: "Transaction updated successfully" });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+  // } catch (error) {
+  //   res.status(500).json({ error: error.message });
+  // }
 };
 
 

@@ -5,7 +5,7 @@ const accountNoTable = async () => {
     CREATE TABLE IF NOT EXISTS accountNo (
       id SERIAL PRIMARY KEY,
       user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      accountNo VARCHAR(100) NOT NULL,
+      "accountNo" VARCHAR(100) NOT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
   `;

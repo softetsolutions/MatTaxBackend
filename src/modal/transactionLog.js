@@ -86,9 +86,9 @@ const transactionLogTable = async () => {
 const transactionAndTransactionLogProcedureQuery =  `CREATE OR REPLACE PROCEDURE update_transaction_with_log(
     p_transaction_id INT,
     p_new_amount VARCHAR(100),
-    p_new_category VARCHAR(100),
+    p_new_category INT,
     p_new_type VARCHAR(100),
-    p_new_accountNo VARCHAR(500),
+    p_new_accountNo INT,
     p_new_vat_gst_amount VARCHAR(100),
     p_new_vat_gst_percentage VARCHAR(100),
     p_new_desc1 VARCHAR(100),
