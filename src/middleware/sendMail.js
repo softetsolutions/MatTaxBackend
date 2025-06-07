@@ -275,7 +275,7 @@ export const sendDeleteConfirmationEmail = async (email, token) => {
     const confirmationLink = `${process.env.FRONTEND_URL}/confirmDeleteAccount?token=${token}`;
 
     const mailOptions = {
-      from: `"MaxTaxPro" <${process.env.MAIL_EMAIL}>`,
+      from: process.env.MAIL_EMAIL,
       to: email,
       subject: "Confirm Account Deletion",
       html: `
@@ -287,8 +287,9 @@ export const sendDeleteConfirmationEmail = async (email, token) => {
       `,
     };
 
-    await transporter.sendMail(mailOptions);
-    return { success: true };
+    // await transporter.sendMail(mailOptions);
+    const res = await sendMail(mailOptions);
+    return res;
   } catch (err) {
     console.error("Failed to send email:", err);
     return { success: false, error: err };

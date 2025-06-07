@@ -22,8 +22,7 @@ export const sendEmailForDeleteUser = async (req, res) => {
     // 📧 Send confirmation email with token
     const emailResult = await sendDeleteConfirmationEmail(email, token);
 
-    if (!emailResult.success) throw new Error("Email send failed");
-
+    if (emailResult.error) throw new Error("Email send failed");
     res.json({ message: "Confirmation email sent successfully." });
   } catch (err) {
     console.error("Catch block error:", err);
@@ -36,19 +35,13 @@ export const confirmDeleteAccount = async (req, res) => {
   try {
     const userId = req.user?.id;
     const token = req.query?.token;
-
     if (!userId) {
-      return res.status(401).json({ error: "User ID not found in request" });
+      return res.status(401).json({ error: "please login again to request deletion" });
     }
 
     // Promisify jwt.verify for async/await
-    const decoded = await new Promise((resolve, reject) => {
-      jwt.verify(token, process.env.JWT_KEY, (err, decoded) => {
-        if (err) reject(err);
-        else resolve(decoded);
-      });
-    });
-
+    const decoded = jwt.verify(token, process.env.JWT_KEY);
+    console.log("Decoded token:", decoded);
     // Verify token email matches user email
     const userRes = await client.query("SELECT email FROM users WHERE id = $1", [userId]);
     const userEmail = userRes.rows[0]?.email;
@@ -58,14 +51,15 @@ export const confirmDeleteAccount = async (req, res) => {
     }
 
     await client.query('BEGIN');
-
-    await client.query("DELETE FROM receipt WHERE transactionId IN (SELECT id FROM transaction WHERE userId = $1)", [userId]);
+    const receiptsRes = await client.query("SELECT receipt FROM transaction WHERE userId = $1", [userId]);
+    const receiptIds = receiptsRes.rows.map(r => r.receipt).filter(Boolean);
     await client.query("DELETE FROM transactionLog WHERE transactionId IN (SELECT id FROM transaction WHERE userId = $1)", [userId]);
     await client.query("DELETE FROM transaction WHERE userId = $1", [userId]);
     await client.query("DELETE FROM vendors WHERE user_id = $1", [userId]);
     await client.query("DELETE FROM category WHERE user_id = $1", [userId]);
-    await client.query("DELETE FROM authorizetable WHERE userId = $1", [userId]);
     await client.query("DELETE FROM accountNo WHERE user_id = $1", [userId]);
+    await client.query("DELETE FROM receipt WHERE id = ANY($1::int[])", [receiptIds]);
+    await client.query("DELETE FROM authorizetable WHERE userId = $1", [userId]);
     await client.query("DELETE FROM users WHERE id = $1", [userId]);
 
     await client.query('COMMIT');
@@ -73,6 +67,8 @@ export const confirmDeleteAccount = async (req, res) => {
     res.status(200).json({ message: "Account deleted successfully" });
   } catch (error) {
     await client.query('ROLLBACK');
+    if(error.name === 'TokenExpiredError') 
+      return res.status(401).json({ error: "Token expired, please request a new confirmation email" }); 
     console.error("Error in confirmDeleteAccount:", error);
     res.status(500).json({ error: "Failed to delete account" });
   } finally {

@@ -89,9 +89,14 @@ export const createTransaction = async (req, res) => {
     req.body.vendorId = vendorId;
     req.body.userId = userId;
     req.body.receipt = receiptId;
-    const keys = Object.keys(req.body).filter((key) =>
-      allowedFields.includes(key)
-    );
+    const transactionData = {};
+    for (const key of allowedFields) {
+      const value = req.body[key];
+      if (value !== "" && value !== undefined) {
+        transactionData[key] = value;
+      }
+    }
+    const keys = Object.keys(transactionData)
     const values = keys.map((key) => req.body[key]);
     const query = `INSERT INTO transaction (${keys.join(", ")})
       VALUES (${keys.map((_, i) => `$${i + 1}`).join(", ")})
@@ -714,8 +719,8 @@ export const importTransactionCSV = async (req, res, next) => {
         } = row;
 
         await client.query(
-          `INSERT INTO transaction (amount, created_at, type, userId, desc3, desc1, desc2, balance, isDeleted, category, vendorId)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+          `INSERT INTO transaction (amount, created_at, type, userId, desc3, desc1, desc2, balance, isDeleted)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
           [
             amount,
             created_at,
@@ -726,8 +731,6 @@ export const importTransactionCSV = async (req, res, next) => {
             desc2,
             balance,
             false,
-            "extra",
-            1,
           ]
         );
       }
@@ -745,7 +748,6 @@ export const importTransactionCSV = async (req, res, next) => {
       return res.status(500).json({ error: `Database error: ${err.message}` });
     } finally {
       client.release();
-      await fs.promises.unlink(req.file.path);
     }
   } catch (err) {
     return res.status(500).json({ error: `Unexpected error: ${err.message}` });

@@ -15,7 +15,7 @@ userRouter.put("/:id", updateUser);
 userRouter.get("/accountants/:id", getAllAccountant);
 userRouter.get("/accountant-by-email/:email", getAccountantByEmail);
 userRouter.post("/sendmail-for-delete-user", verifyToken, sendEmailForDeleteUser);
-userRouter.delete("/confirm-delete", verifyToken, confirmDeleteAccount);
+userRouter.delete("/confirm-delete", confirmDeleteAccount);
 
 
 export default userRouter;
